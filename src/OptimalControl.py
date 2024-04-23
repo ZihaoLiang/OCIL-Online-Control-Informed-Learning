@@ -13,31 +13,32 @@ class OC():
     def _init_(self, project_name = 'Optimal Control'):
         self.prject_name = project_name
         
-    def getTraj(self, dyn, init, target, T):
+    def getTraj(self, dyn, weight, init, target, T):
         
         dt = 0.1
         nT = int(T/dt)
+        self.w = weight
                 
         #set environment
         if dyn == 'LTI':
             self.sys = LTI()
-            self.w = [2, 1, 1]   #weight vector
+            # self.w = [2, 1, 1]   #weight vector
 
         elif dyn == 'RobotArm':
             self.sys = RobotArm()
-            self.w = [2, 1, 1, 1, 1]   #weight vector
+            # self.w = [2, 1, 1, 1, 1]   #weight vector
 
         elif dyn == 'Pendulum':
             self.sys = Pend()
-            self.w = [2, 1, 1]   #weight vector
+            # self.w = [2, 1, 1]   #weight vector
 
         elif dyn == 'UAV':
             self.sys = UAV()
-            self.w = [2, 1, 1, 1]   #weight vector
+            # self.w = [2, 1, 1, 1]   #weight vector
         
         elif dyn == 'Dot':
             self.sys = Dot()
-            self.w = [2,2,1,1]
+            # self.w = [2, 2, 1, 1]
 
         else:
             print('Unknown dynamics')
