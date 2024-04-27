@@ -3,18 +3,18 @@ import numpy as np
 class EKF:
 
     def __init__(self):
-        return
+        pass
 
     def predict(self, theta_prev, P_prev, Q_prev):
         self.theta_ = theta_prev
         self.P_ = P_prev + Q_prev
         
     def update(self, dLdtheta, R, stageLoss):
-        p = np.shape(dLdtheta)[0] #size of theta
+        p = np.shape(dLdtheta)[1] #size of theta
         S = np.matmul(np.matmul(dLdtheta, self.P_), np.transpose(dLdtheta)) + R
-        kalmanGain = np.matmul(self.P_, dLdtheta) * 1/S #Kalman Gain
+        kalmanGain = np.matmul(np.matmul(self.P_, np.transpose(dLdtheta)), np.linalg.inv(S)) #Kalman Gain
         self.P = np.matmul((np.eye(p) - np.matmul(kalmanGain, dLdtheta)), self.P_) #Update P
-        self.theta = self.theta_ + kalmanGain * stageLoss #Update theta
+        self.theta = self.theta_ + np.matmul(np.transpose(stageLoss),np.transpose(kalmanGain)) #Update theta
         return self.theta
     
 if __name__ == '__main__':
