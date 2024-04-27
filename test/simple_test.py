@@ -1,85 +1,123 @@
 import numpy as np
 from casadi import *
-import matplotlib.pyplot as plt
-import os
-import sys
+import scipy.io as sio
 sys.path.append(os.getcwd() + '/src')
-from dynamics_env import LTI, Pend, RobotArm, UAV, toQuaternion, Dot
-from OptimalControl import OC
+sys.path.append(os.getcwd() + '/externals/Pontryagin-Differentiable-Programming')
+from PDP import PDP
+from JinEnv import JinEnv
+from EKF import EKF
 from Loss_function import Loss
+
+# --------------------------- Set up OC system ----------------------------------------
+
+dynsys = JinEnv.CartPole()
+dynsys.initDyn(mc=0.5, mp=0.5, l=1)
+dynsys.initCost(wu = 0.1)
+
+# --------------------------- load demos data ----------------------------------------
+data = sio.loadmat('externals/Pontryagin-Differentiable-Programming/Examples/IRL/cartpole/data/cartpole_demos.mat')
+trajectories = data['trajectories']
+# true_parameter = data['true_parameter'].flatten() #0.5 0.5 1 1 6 1 1
+true_parameter = np.array([1,6,1,1]) #weight of cost
+dt = data['dt']
+
+# --------------------------- Initialize Classes ----------------------------------------
+sysoc = PDP.OCSys()
+# sysoc.setAuxvarVariable(vertcat(dynsys.dyn_auxvar, dynsys.cost_auxvar)) #set which theta to learn
+sysoc.setAuxvarVariable(dynsys.cost_auxvar)#set which theta to learn
+sysoc.setControlVariable(dynsys.U)
+sysoc.setStateVariable(dynsys.X)
+dyn = dynsys.X + dt * dynsys.f
+sysoc.setDyn(dyn)
+sysoc.setPathCost(dynsys.path_cost)
+sysoc.setFinalCost(dynsys.final_cost)
+sysoc.diffPMP()
+lqr_solver = PDP.LQR()
+
+# --------------------------- initilize tunable parameter ----------------------------------------
+sigma = 0.9
+initial_parameter = true_parameter + sigma * np.random.random(len(true_parameter)) - sigma / 2
+current_parameter = initial_parameter
+
+loss = 0
+dp = np.zeros(current_parameter.shape)
+demo_state_traj = trajectories[0, 1]['state_traj_opt'][0, 0]
+demo_control_traj = trajectories[0, 1]['control_traj_opt'][0, 0]
+demo_ini_state = demo_state_traj[0, :]
+demo_horizon = demo_control_traj.shape[0]
+
+# traj_true = sysoc.ocSolver(ini_state=demo_ini_state, horizon=demo_horizon, auxvar_value=true_parameter)
+
+# --------------------------- initilize EKF ----------------------------------------
+P_prev = np.eye(current_parameter.shape[0]) * 0.0000001
+Q_prev = np.eye(current_parameter.shape[0]) * 0.
+R = np.eye(5) * 0.0000000001
+
+# --------------------------- Online Control-Informed Learning ----------------------------------------
+for idx in range(demo_horizon):
     
+    # --------------------------- Trajectory based on current parameter guess ---------------------------------------- 
+    traj = sysoc.ocSolver(ini_state=demo_ini_state, horizon=demo_horizon, auxvar_value = current_parameter)
 
-##################### Set up #####################
-dyn = 'Dot'
-init = [2, 1]
-target = [0, 0]  
+    # --------------------------- Gradient generator, dXidtheta ---------------------------------------- 
+    aux_sys = sysoc.getAuxSys(state_traj_opt=traj['state_traj_opt'],
+                                    control_traj_opt=traj['control_traj_opt'],
+                                    costate_traj_opt=traj['costate_traj_opt'],
+                                    auxvar_value = current_parameter)
+    lqr_solver.setDyn(dynF=aux_sys['dynF'], dynG=aux_sys['dynG'], dynE=aux_sys['dynE'])
+    lqr_solver.setPathCost(Hxx=aux_sys['Hxx'], Huu=aux_sys['Huu'], Hxu=aux_sys['Hxu'], Hux=aux_sys['Hux'],
+                            Hxe=aux_sys['Hxe'], Hue=aux_sys['Hue'])
+    lqr_solver.setFinalCost(hxx=aux_sys['hxx'], hxe=aux_sys['hxe'])
+    aux_sol = lqr_solver.lqrSolver(numpy.zeros((sysoc.n_state, sysoc.n_auxvar)), demo_horizon)
 
-weight_init = [1, 1, 1, 1]
-   
-############################### Perform optimal control ###############################    
-T = 5 # number of control intervals
-dt = 0.1
-nT = int(T/0.1)
+    # take solution of the auxiliary control system
+    dxdtheta_traj = aux_sol['state_traj_opt']
+    dudtheta_traj = aux_sol['control_traj_opt']
 
-weight_oc = [2, 2, 1, 1]
-OCsys = OC()
-OCsys.getTraj(dyn, weight_oc, init, target, T)
-# Ot
-x_his_oc = OCsys.x_his
-u_his_oc = OCsys.u_his
+    dxdtheta_t = dxdtheta_traj[idx]
+    dudtheta_t = dudtheta_traj[idx]
+    dxidtheta_t = np.vstack((dxdtheta_t, dudtheta_t))
 
-x_his_oc = np.concatenate(x_his_oc,axis = 1)
-u_his_oc = np.concatenate(u_his_oc,axis = 1)
+    # --------------------------- Loss function, dLdXi ---------------------------------------- 
+    state_traj = traj['state_traj_opt']
+    control_traj = traj['control_traj_opt']
+    # dldx_traj = state_traj - demo_state_traj
+    # dldu_traj = control_traj - demo_control_traj
 
-lossFun = Loss(len(x_his_oc), len(u_his_oc))
-weight = weight_init
+    xi = SX.sym("xi", 5) #n+m
+    demo_traj = np.hstack((demo_state_traj[idx], demo_control_traj[idx]))
+    current_traj = np.hstack((state_traj[idx], control_traj[idx]))
 
-for idx in range(nT):
-    # perform oc with current weight
-    OCsys.getTraj(dyn, weight, init, target, T)
-    x_his = OCsys.x_his
-    u_his = OCsys.u_his
-    x_his = np.concatenate(x_his,axis = 1)
-    u_his = np.concatenate(u_his,axis = 1)
+    # loss = 1/2 * norm_2(xi - demo_traj)**2
+    loss = demo_traj - xi
+    dLdXi = jacobian(loss, xi)
+    lossFun = Function("lossFun", [xi], [loss])
+    dLdXiFun = Function("dLdXiFun", [xi], [dLdXi])
+
+    lossNow = lossFun(current_traj).full()
+    dLdXiNow = dLdXiFun(current_traj).full()
+
+     # evaluate the loss
+    dldx_traj = state_traj - demo_state_traj
+    dldu_traj = control_traj - demo_control_traj
     
-    # Traj at current t
-    traj_oc_t = np.hstack((x_his_oc[:,idx], u_his_oc[:,idx]))
-    traj_t = np.hstack((x_his[:,idx], u_his[:,idx]))
+    # --------------------------- Chain rule ----------------------------------------
+    dLdtheta = np.matmul(dLdXiNow, dxidtheta_t)[0]
 
-    # Loss function, dLdXi
-    loss, dLdXi = lossFun.getLossValue(traj_t, traj_oc_t)
-
-    # Gradient generator
-    dXidTheta = 0
-
-    # Chain rule
-    dLdTheta = dLdXi * dXidTheta
-
-    # Kalman gain
-    K = 0
-
-    # Update weight using EKF
-    weight = weight
-
-
-fig, axs = plt.subplots(2)
-
-# axs[0].plot(x_his[0,:], label = 'x1')
-# axs[0].plot(x_his[1,:], label = 'x2')
-axs[0].plot(x_his_oc[0,:], label = 'x1_oc')
-axs[0].plot(x_his_oc[1,:], label = 'x2_oc')
-axs[0].legend()
-axs[0].grid()
-axs[0].set(ylabel = 'x')
-
-# axs[1].plot(u_his[0,:], label = 'u1')
-# axs[1].plot(u_his[1,:], label = 'u2')
-axs[1].plot(u_his_oc[0,:], label = 'u1_oc')
-axs[1].plot(u_his_oc[1,:], label = 'u2_oc')
-axs[1].set(ylabel = 'u')
-axs[1].legend()
-axs[1].grid()
-
-plt.xlabel('t')
-plt.show()
+    # chain rule
+    for t in range(demo_horizon):
+        dp = dp + np.matmul(dldx_traj[t, :], dxdtheta_traj[t]) + np.matmul(dldu_traj[t, :], dudtheta_traj[t])
+    dp = dp + numpy.dot(dldx_traj[-1, :], dxdtheta_traj[-1])
     
+    dp = dxidtheta_t
+
+    # --------------------------- EKF ----------------------------------------
+    updateTheta = EKF()
+    updateTheta.predict(current_parameter, P_prev, Q_prev)
+    # updateTheta.update(dLdtheta, R, lossNow)
+    updateTheta.update(dp, R, lossNow)
+    print('theta = ', updateTheta.theta)
+    # print(updateTheta.P)
+    # print('loss = ', lossNow)
+    P_prev = updateTheta.P
+    current_parameter = updateTheta.theta
