@@ -13,7 +13,7 @@ from JinEnv import JinEnv
 # ------------------------------ Set up dynamic system ------------------------------
 project = "CartPole"
 mode = "Imitation Learning"
-saveFlag = True
+saveFlag = False
 dynsys = JinEnv.CartPole()
 dynsys.initDyn(mc=0.5, mp=0.5, l=1)
 dynsys.initCost(wu = 0.1)
