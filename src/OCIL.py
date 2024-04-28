@@ -20,6 +20,7 @@ class OCIL:
 
         self.dir = dir
         self.saveFlag = saveFlag
+        self.plotTrajFlag = True
         if saveFlag:
             if os.path.exists(self.dir+"results/"):
                 shutil.rmtree(self.dir+"results/")
@@ -203,6 +204,8 @@ class OCIL:
             if self.saveFlag:
                 self.saveEach(idx, traj, loss_his)
 
+            if self.plotTrajFlag:
+                self.plotTraj(state_traj, control_traj)
 
             # evaluate the loss
             dldx_traj = state_traj - self.demo_state_traj
@@ -278,3 +281,33 @@ class OCIL:
         axs.set_ylabel("Theta Error")
         axs.set_title(self.mode + ": " + self.project)
         plt.show()
+
+    def plotTraj(self, state_traj, control_traj):
+
+        iter = [*range(len(state_traj))]
+        fig, axs = plt.subplots(len(state_traj[0]),1)
+        for idx in range(len(state_traj[0])):
+            axs[idx].plot(iter, state_traj[:,idx])
+            axs[idx].plot(iter, self.demo_state_traj[:,idx])
+            axs[idx].set_ylabel("x"+str(idx+1))
+        axs[-1].set_xlabel("Iteration")
+        axs[0].set_title("State Trajectory")
+
+        iter = [*range(len(control_traj))]
+        if len(control_traj[0]) == 1:
+            fig, axs = plt.subplots()
+            axs.plot(iter, control_traj)
+            axs.plot(iter, self.demo_control_traj)
+            axs.set_ylabel("u")
+            axs.set_xlabel("Iteration")
+            axs.set_title("Control Trajectory")
+        else:
+            fig, axs = plt.subplots(len(control_traj[0]),1)
+            for idx in range(len(control_traj[0])):
+                axs[idx].plot(iter, control_traj[:,idx])
+                axs[idx].plot(iter, self.demo_control_traj[:,idx])
+                axs[idx].set_ylabel("x"+str(idx+1))
+            axs[-1].set_xlabel("Iteration")
+            axs[0].set_title("Control Trajectory")
+        plt.show()
+
