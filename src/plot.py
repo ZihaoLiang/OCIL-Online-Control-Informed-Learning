@@ -10,11 +10,18 @@ class plot():
 
     def plotLoss(self):
         Loss = self.data['Loss'][0]
+        theta_error = self.data['theta'][0]
         iter = [*range(len(Loss))]
 
         fig, axs = plt.subplots()
         axs.plot(iter, Loss)
         axs.set_xlabel("Learning Iteration")
         axs.set_ylabel("Loss")
+        axs.set_title(self.mode + ": " + self.project)
+
+        fig, axs = plt.subplots()
+        axs.plot(iter, theta_error)
+        axs.set_xlabel("Learning Iteration")
+        axs.set_ylabel("Theta Error")
         axs.set_title(self.mode + ": " + self.project)
         plt.show()

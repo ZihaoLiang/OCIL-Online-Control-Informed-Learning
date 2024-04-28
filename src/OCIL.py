@@ -63,8 +63,8 @@ class OCIL:
 
         self.loss = 0
         self.dp = np.zeros(self.theta.shape)
-        self.demo_state_traj = self.trajectories[0, 1]['state_traj_opt'][0, 0]
-        self.demo_control_traj = self.trajectories[0, 1]['control_traj_opt'][0, 0]
+        self.demo_state_traj = self.trajectories[0, 0]['state_traj_opt'][0, 0]
+        self.demo_control_traj = self.trajectories[0, 0]['control_traj_opt'][0, 0]
         self.demo_ini_state = self.demo_state_traj[0, :]
         self.demo_horizon = self.demo_control_traj.shape[0]
 
@@ -113,7 +113,7 @@ class OCIL:
             state_traj = traj['state_traj_opt']
             control_traj = traj['control_traj_opt']
 
-            xi = SX.sym("xi", 5) #n+m
+            xi = SX.sym("xi", self.dynsys.X.shape[0]+self.dynsys.U.shape[0])
             demo_traj = np.hstack((self.demo_state_traj[idx], self.demo_control_traj[idx]))
             current_traj = np.hstack((state_traj[idx], control_traj[idx]))
 
@@ -146,7 +146,7 @@ class OCIL:
             self.theta = updateTheta.theta
         
         if self.saveFlag:
-            self.saveEach(traj, loss_his)
+            self.saveEach(idx+1, traj, loss_his)
 
     def solveAllLoss(self):
         for idx in range(self.demo_horizon):
@@ -178,7 +178,7 @@ class OCIL:
             state_traj = traj['state_traj_opt']
             control_traj = traj['control_traj_opt']
 
-            xi = SX.sym("xi", 5) #n+m
+            xi = SX.sym("xi", self.dynsys.X.shape[0]+self.dynsys.U.shape[0])
             demo_traj = np.hstack((self.demo_state_traj[idx], self.demo_control_traj[idx]))
             current_traj = np.hstack((state_traj[idx], control_traj[idx]))
 
@@ -270,5 +270,11 @@ class OCIL:
         axs.plot(self.iter_his, self.Loss_his)
         axs.set_xlabel("Learning Iteration")
         axs.set_ylabel("Loss")
+        axs.set_title(self.mode + ": " + self.project)
+
+        fig, axs = plt.subplots()
+        axs.plot(self.iter_his, self.theta_error)
+        axs.set_xlabel("Learning Iteration")
+        axs.set_ylabel("Theta Error")
         axs.set_title(self.mode + ": " + self.project)
         plt.show()
