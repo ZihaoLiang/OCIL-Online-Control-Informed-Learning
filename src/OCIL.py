@@ -20,9 +20,11 @@ class OCIL:
 
         self.dir = dir
         self.saveFlag = saveFlag
-        if os.path.exists(self.dir+"results/"):
-            shutil.rmtree(self.dir+"results/")
-        os.mkdir(self.dir+"results/")
+        self.plotTrajFlag = True
+        if saveFlag:
+            if os.path.exists(self.dir+"results/"):
+                shutil.rmtree(self.dir+"results/")
+            os.mkdir(self.dir+"results/")
 
         # ------------------------------ set up system ------------------------------
         self.project = project
@@ -62,8 +64,8 @@ class OCIL:
 
         self.loss = 0
         self.dp = np.zeros(self.theta.shape)
-        self.demo_state_traj = self.trajectories[0, 1]['state_traj_opt'][0, 0]
-        self.demo_control_traj = self.trajectories[0, 1]['control_traj_opt'][0, 0]
+        self.demo_state_traj = self.trajectories[0, 0]['state_traj_opt'][0, 0]
+        self.demo_control_traj = self.trajectories[0, 0]['control_traj_opt'][0, 0]
         self.demo_ini_state = self.demo_state_traj[0, :]
         self.demo_horizon = self.demo_control_traj.shape[0]
 
@@ -112,7 +114,7 @@ class OCIL:
             state_traj = traj['state_traj_opt']
             control_traj = traj['control_traj_opt']
 
-            xi = SX.sym("xi", 5) #n+m
+            xi = SX.sym("xi", self.dynsys.X.shape[0]+self.dynsys.U.shape[0])
             demo_traj = np.hstack((self.demo_state_traj[idx], self.demo_control_traj[idx]))
             current_traj = np.hstack((state_traj[idx], control_traj[idx]))
 
@@ -145,7 +147,7 @@ class OCIL:
             self.theta = updateTheta.theta
         
         if self.saveFlag:
-            self.saveEach(traj, loss_his)
+            self.saveEach(idx+1, traj, loss_his)
 
     def solveAllLoss(self):
         for idx in range(self.demo_horizon):
@@ -177,7 +179,7 @@ class OCIL:
             state_traj = traj['state_traj_opt']
             control_traj = traj['control_traj_opt']
 
-            xi = SX.sym("xi", 5) #n+m
+            xi = SX.sym("xi", self.dynsys.X.shape[0]+self.dynsys.U.shape[0])
             demo_traj = np.hstack((self.demo_state_traj[idx], self.demo_control_traj[idx]))
             current_traj = np.hstack((state_traj[idx], control_traj[idx]))
 
@@ -202,6 +204,8 @@ class OCIL:
             if self.saveFlag:
                 self.saveEach(idx, traj, loss_his)
 
+            if self.plotTrajFlag:
+                self.plotTraj(state_traj, control_traj)
 
             # evaluate the loss
             dldx_traj = state_traj - self.demo_state_traj
@@ -251,9 +255,9 @@ class OCIL:
 
     def saveEach(self, idx, traj, loss_his):
         sio.savemat(self.dir+"results/iter_"+str(idx)+".mat", {'trajectories': traj,
-                                                                            'losses': loss_his,
-                                                                            'dt': self.dt,
-                                                                            'theta': self.theta})
+                                                                'losses': loss_his,
+                                                                'dt': self.dt,
+                                                                'theta': self.theta})
 
     def saveAll(self):
         sio.savemat(self.dir+"results/Loss.mat", {'Loss': self.Loss_his,
@@ -266,5 +270,44 @@ class OCIL:
 
     def plotLoss(self):
         fig, axs = plt.subplots()
+        axs.plot(self.iter_his, self.Loss_his)
+        axs.set_xlabel("Learning Iteration")
+        axs.set_ylabel("Loss")
+        axs.set_title(self.mode + ": " + self.project)
+
+        fig, axs = plt.subplots()
         axs.plot(self.iter_his, self.theta_error)
+        axs.set_xlabel("Learning Iteration")
+        axs.set_ylabel("Theta Error")
+        axs.set_title(self.mode + ": " + self.project)
         plt.show()
+
+    def plotTraj(self, state_traj, control_traj):
+
+        iter = [*range(len(state_traj))]
+        fig, axs = plt.subplots(len(state_traj[0]),1)
+        for idx in range(len(state_traj[0])):
+            axs[idx].plot(iter, state_traj[:,idx])
+            axs[idx].plot(iter, self.demo_state_traj[:,idx])
+            axs[idx].set_ylabel("x"+str(idx+1))
+        axs[-1].set_xlabel("Iteration")
+        axs[0].set_title("State Trajectory")
+
+        iter = [*range(len(control_traj))]
+        if len(control_traj[0]) == 1:
+            fig, axs = plt.subplots()
+            axs.plot(iter, control_traj)
+            axs.plot(iter, self.demo_control_traj)
+            axs.set_ylabel("u")
+            axs.set_xlabel("Iteration")
+            axs.set_title("Control Trajectory")
+        else:
+            fig, axs = plt.subplots(len(control_traj[0]),1)
+            for idx in range(len(control_traj[0])):
+                axs[idx].plot(iter, control_traj[:,idx])
+                axs[idx].plot(iter, self.demo_control_traj[:,idx])
+                axs[idx].set_ylabel("x"+str(idx+1))
+            axs[-1].set_xlabel("Iteration")
+            axs[0].set_title("Control Trajectory")
+        plt.show()
+

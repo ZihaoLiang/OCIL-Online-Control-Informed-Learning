@@ -11,22 +11,22 @@ from JinEnv import JinEnv
 
 
 # ------------------------------ Set up dynamic system ------------------------------
-project = "CartPole"
+project = "Rocket"
 mode = "Imitation Learning"
 saveFlag = False
-dynsys = JinEnv.CartPole()
-dynsys.initDyn(mc=0.5, mp=0.5, l=1)
-dynsys.initCost(wu = 0.1)
+dynsys = JinEnv.Rocket()
+dynsys.initDyn(Jx=0.5, Jy=1, Jz=1, mass=1, l=1)
+dynsys.initCost(wthrust = 0.1)
 
-dir = 'examples/ImitationLearning/cartpole/data/'
-demoFile = 'cartpole_demos.mat'
+dir = 'examples/ImitationLearning/rocket/data/'
+demoFile = 'rocket_demos.mat'
 
 system = OCIL(project, mode, dynsys, dir, demoFile, saveFlag)
 
 # --------------------------- initilize EKF ----------------------------------------
-P = np.eye(4) * 0.0000001
-Q = np.eye(4) * 0.
-R = np.eye(5) * 0.0000000001
+P = np.eye(5) * 0.0000001
+Q = np.eye(5) * 0.
+R = np.eye(16) * 0.0000000001
 
 system.initialize_EKF(P, Q, R)
 
