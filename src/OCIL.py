@@ -20,9 +20,10 @@ class OCIL:
 
         self.dir = dir
         self.saveFlag = saveFlag
-        if os.path.exists(self.dir+"results/"):
-            shutil.rmtree(self.dir+"results/")
-        os.mkdir(self.dir+"results/")
+        if saveFlag:
+            if os.path.exists(self.dir+"results/"):
+                shutil.rmtree(self.dir+"results/")
+            os.mkdir(self.dir+"results/")
 
         # ------------------------------ set up system ------------------------------
         self.project = project
@@ -251,9 +252,9 @@ class OCIL:
 
     def saveEach(self, idx, traj, loss_his):
         sio.savemat(self.dir+"results/iter_"+str(idx)+".mat", {'trajectories': traj,
-                                                                            'losses': loss_his,
-                                                                            'dt': self.dt,
-                                                                            'theta': self.theta})
+                                                                'losses': loss_his,
+                                                                'dt': self.dt,
+                                                                'theta': self.theta})
 
     def saveAll(self):
         sio.savemat(self.dir+"results/Loss.mat", {'Loss': self.Loss_his,
@@ -266,5 +267,8 @@ class OCIL:
 
     def plotLoss(self):
         fig, axs = plt.subplots()
-        axs.plot(self.iter_his, self.theta_error)
+        axs.plot(self.iter_his, self.Loss_his)
+        axs.set_xlabel("Learning Iteration")
+        axs.set_ylabel("Loss")
+        axs.set_title(self.mode + ": " + self.project)
         plt.show()
