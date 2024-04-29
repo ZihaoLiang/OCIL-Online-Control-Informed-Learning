@@ -12,20 +12,20 @@ from JinEnv import JinEnv
 
 # ------------------------------ Set up dynamic system ------------------------------
 project = "Quadrotor"
-mode = "Imitation Learning"
+mode = "SysID"
 saveFlag = False
 dynsys = JinEnv.Quadrotor()
-dynsys.initDyn(Jx=1, Jy=1, Jz=1, mass=1, l=0.4, c=0.01)
-dynsys.initCost(wthrust=0.1)
+dynsys.initDyn(c=0.01)
+dynsys.initCost(wr=1, wv=1, wq=5, ww=1, wthrust=0.1)
 
-dir = 'examples/ImitationLearning/uav/data/'
+dir = 'examples/SysID/uav/data/'
 demoFile = 'uav_demos.mat'
 
 system = OCIL(project, mode, dynsys, dir, demoFile, saveFlag)
 
 # --------------------------- initilize EKF ----------------------------------------
-P = np.eye(4) * 0.0000001
-Q = np.eye(4) * 0.
+P = np.eye(5) * 0.0000001
+Q = np.eye(5) * 0.
 R = np.eye(17) * 0.0000000001
 
 system.initialize_EKF(P, Q, R)

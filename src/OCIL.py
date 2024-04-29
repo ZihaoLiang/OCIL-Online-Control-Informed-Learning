@@ -20,7 +20,7 @@ class OCIL:
 
         self.dir = dir
         self.saveFlag = saveFlag
-        self.plotTrajFlag = True
+        self.plotTrajFlag = False
         if saveFlag:
             if os.path.exists(self.dir+"results/"):
                 shutil.rmtree(self.dir+"results/")
@@ -33,7 +33,6 @@ class OCIL:
         self.num_dyn_auxvar = dynsys.dyn_auxvar.shape[0]
         self.num_cost_auxvar = dynsys.cost_auxvar.shape[0]
         
-
         # ------------------------------ load demos data ------------------------------
         data = sio.loadmat(dir+demoFile)
         self.trajectories = data['trajectories']
@@ -41,11 +40,20 @@ class OCIL:
         if mode == "Imitation Learning":
             self.true_theta = data['true_parameter'].flatten()
             self.true_theta = self.true_theta[len(self.true_theta)-self.num_cost_auxvar:]
+        elif mode == "SysID":
+            self.true_theta = data['true_parameter'].flatten()
+            self.true_theta = self.true_theta[:self.num_dyn_auxvar]
+
+        print(data['true_parameter'].flatten())
+        print(self.true_theta)
 
         # ------------------------------ initialize Classes ------------------------------
         self.sysoc = PDP.OCSys()
         # sysoc.setAuxvarVariable(vertcat(dynsys.dyn_auxvar, dynsys.cost_auxvar)) #set which theta to learn
-        self.sysoc.setAuxvarVariable(self.dynsys.cost_auxvar)#set which theta to learn
+        if mode == "Imitation Learning":
+            self.sysoc.setAuxvarVariable(self.dynsys.cost_auxvar)
+        elif mode == "SysID":
+            self.sysoc.setAuxvarVariable(self.dynsys.dyn_auxvar)
         self.sysoc.setControlVariable(self.dynsys.U)
         self.sysoc.setStateVariable(self.dynsys.X)
         self.dyn = self.dynsys.X + self.dt * self.dynsys.f
