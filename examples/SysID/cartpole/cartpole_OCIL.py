@@ -5,10 +5,8 @@ import os
 import sys
 sys.path.append(os.getcwd() + '/src')
 sys.path.append(os.getcwd() + '/externals/Pontryagin-Differentiable-Programming')
-from OCIL import OCIL
+import OCIL
 from JinEnv import JinEnv
-
-
 
 # ------------------------------ Set up dynamic system ------------------------------
 project = "CartPole"
@@ -17,16 +15,17 @@ saveFlag = False
 dynsys = JinEnv.CartPole()
 dynsys.initDyn()
 dynsys.initCost(wx=1,wq=6,wdx=1,wdq=1,wu = 0.1)
+dt = 0.05
 
 dir = 'examples/SysID/cartpole/data/'
-demoFile = 'cartpole_demos.mat'
+demoFile = 'cartpole_iodata.mat'
 
-system = OCIL(project, mode, dynsys, dir, demoFile, saveFlag)
+system = OCIL.SysID(project, mode, dynsys, dt, dir, demoFile, saveFlag)
 
 # --------------------------- initilize EKF ----------------------------------------
 P = np.eye(3) * 0.0000001
 Q = np.eye(3) * 0.
-R = np.eye(5) * 0.0000000001
+R = np.eye(4) * 0.0000000001
 
 system.initialize_EKF(P, Q, R)
 
