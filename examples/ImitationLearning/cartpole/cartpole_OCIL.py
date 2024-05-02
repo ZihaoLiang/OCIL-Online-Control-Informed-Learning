@@ -5,14 +5,14 @@ import os
 import sys
 sys.path.append(os.getcwd() + '/src')
 sys.path.append(os.getcwd() + '/externals/Pontryagin-Differentiable-Programming')
-from OCIL import OCIL
+import OCIL
 from JinEnv import JinEnv
 
 
 
 # ------------------------------ Set up dynamic system ------------------------------
 project = "CartPole"
-mode = "Imitation Learning"
+mode = "Objective"
 saveFlag = False
 dynsys = JinEnv.CartPole()
 dynsys.initDyn(mc=0.5, mp=0.5, l=1)
@@ -21,7 +21,7 @@ dynsys.initCost(wu = 0.1)
 dir = 'examples/ImitationLearning/cartpole/data/'
 demoFile = 'cartpole_demos.mat'
 
-system = OCIL(project, mode, dynsys, dir, demoFile, saveFlag)
+system = OCIL.ImitationLearning(project, mode, dynsys, dir, demoFile, saveFlag)
 
 # --------------------------- initilize EKF ----------------------------------------
 P = np.eye(4) * 0.0000001

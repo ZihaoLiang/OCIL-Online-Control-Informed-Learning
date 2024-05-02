@@ -5,14 +5,14 @@ import os
 import sys
 sys.path.append(os.getcwd() + '/src')
 sys.path.append(os.getcwd() + '/externals/Pontryagin-Differentiable-Programming')
-from OCIL import OCIL
+import OCIL
 from JinEnv import JinEnv
 
 
 
 # ------------------------------ Set up dynamic system ------------------------------
 project = "Pendulum"
-mode = "Imitation Learning"
+mode = "Objective"
 saveFlag = False
 dynsys = JinEnv.SinglePendulum()
 
@@ -23,7 +23,7 @@ dir = 'examples/ImitationLearning/pendulum/data/'
 demoFile = 'pendulum_demos.mat'
 
 
-system = OCIL(project, mode, dynsys, dir, demoFile, saveFlag)
+system = OCIL.ImitationLearning(project, mode, dynsys, dir, demoFile, saveFlag)
 
 # --------------------------- initilize EKF ----------------------------------------
 P = np.eye(2) * 0.0000001
