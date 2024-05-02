@@ -5,14 +5,14 @@ import os
 import sys
 sys.path.append(os.getcwd() + '/src')
 sys.path.append(os.getcwd() + '/externals/Pontryagin-Differentiable-Programming')
-from OCIL import OCIL
+import OCIL
 from JinEnv import JinEnv
 
 
 
 # ------------------------------ Set up dynamic system ------------------------------
 project = "Rocket"
-mode = "Imitation Learning"
+mode = "Objective"
 saveFlag = False
 dynsys = JinEnv.Rocket()
 dynsys.initDyn(Jx=0.5, Jy=1, Jz=1, mass=1, l=1)
@@ -21,7 +21,7 @@ dynsys.initCost(wthrust = 0.1)
 dir = 'examples/ImitationLearning/rocket/data/'
 demoFile = 'rocket_demos.mat'
 
-system = OCIL(project, mode, dynsys, dir, demoFile, saveFlag)
+system = OCIL.ImitationLearning(project, mode, dynsys, dir, demoFile, saveFlag)
 
 # --------------------------- initilize EKF ----------------------------------------
 P = np.eye(5) * 0.0000001
