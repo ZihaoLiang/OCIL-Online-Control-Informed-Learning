@@ -89,6 +89,7 @@ class ImitationLearning:
     def set_sigma(self, sigma):
         self.sigma = sigma
         self.initial_theta = self.true_theta + self.sigma * np.random.random(len(self.true_theta)) - self.sigma / 2
+        self.theta = self.initial_theta
 
     def initialize_EKF(self, P, Q, R):
         self.P_prev = P
@@ -382,6 +383,7 @@ class SysID:
     def set_sigma(self, sigma):
         self.sigma = sigma
         self.initial_theta = self.true_theta + self.sigma * np.random.random(len(self.true_theta)) - self.sigma / 2
+        self.theta = self.initial_theta
 
     def initialize_EKF(self, P, Q, R):
         self.P_prev = P
@@ -484,7 +486,7 @@ class SysID:
                 #     self.saveEach(idx, state_traj, loss_his)
 
                 if self.plotTrajFlag:
-                    self.plotTraj(state_traj, control_traj)
+                    self.plotTraj(state_traj, ob_state_traj)
 
                 # --------------------------- Chain rule ----------------------------------------
                 dLdtheta = np.matmul(dLdXiNow, dxidtheta_t)[0]
@@ -567,32 +569,17 @@ class SysID:
         axs.set_title(self.mode + ": " + self.project)
         plt.show()
 
-    def plotTraj(self, state_traj, control_traj):
+    def plotTraj(self, state_traj, ob_state_traj):
 
         iter = [*range(len(state_traj))]
         fig, axs = plt.subplots(len(state_traj[0]),1)
         for idx in range(len(state_traj[0])):
             axs[idx].plot(iter, state_traj[:,idx])
-            axs[idx].plot(iter, self.demo_state_traj[:,idx])
+            axs[idx].plot(iter, ob_state_traj[:,idx])
             axs[idx].set_ylabel("x"+str(idx+1))
         axs[-1].set_xlabel("Iteration")
         axs[0].set_title("State Trajectory")
 
-        iter = [*range(len(control_traj))]
-        if len(control_traj[0]) == 1:
-            fig, axs = plt.subplots()
-            axs.plot(iter, control_traj)
-            axs.plot(iter, self.demo_control_traj)
-            axs.set_ylabel("u")
-            axs.set_xlabel("Iteration")
-            axs.set_title("Control Trajectory")
-        else:
-            fig, axs = plt.subplots(len(control_traj[0]),1)
-            for idx in range(len(control_traj[0])):
-                axs[idx].plot(iter, control_traj[:,idx])
-                axs[idx].plot(iter, self.demo_control_traj[:,idx])
-                axs[idx].set_ylabel("x"+str(idx+1))
-            axs[-1].set_xlabel("Iteration")
-            axs[0].set_title("Control Trajectory")
+
         plt.show()
 
