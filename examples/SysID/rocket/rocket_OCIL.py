@@ -14,16 +14,17 @@ mode = "SysID"
 saveFlag = False
 dynsys = JinEnv.Rocket()
 dynsys.initDyn()
-dynsys.initCost(wr=1, wv=1, wtilt=50, ww=1, wsidethrust=1, wthrust = 0.1)
-dt = 0.05
+dynsys.initCost(wr=1, wv=1, wtilt=50, ww=1, wsidethrust=1, wthrust=0.1)
+dt = 0.2
 
 dir = 'examples/SysID/rocket/data/'
 demoFile = 'rocket_iodata.mat'
 
 system = OCIL.SysID(project, mode, dynsys, dt, dir, demoFile, saveFlag)
+system.set_sigma(0.2)
 
 # --------------------------- initilize EKF ----------------------------------------
-P = np.eye(5) * 0.0000001
+P = np.eye(5) * 0.001
 Q = np.eye(5) * 0.
 R = np.eye(13) * 0.0000000001
 
