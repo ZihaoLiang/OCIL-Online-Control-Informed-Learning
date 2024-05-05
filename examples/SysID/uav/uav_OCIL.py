@@ -15,7 +15,7 @@ saveFlag = False
 dynsys = JinEnv.Quadrotor()
 dynsys.initDyn(c=0.01)
 dynsys.initCost(wr=1, wv=1, wq=5, ww=1, wthrust=0.1)
-dt = 0.05
+dt = 0.1
 
 dir = 'examples/SysID/uav/data/'
 demoFile = 'uav_iodata.mat'
