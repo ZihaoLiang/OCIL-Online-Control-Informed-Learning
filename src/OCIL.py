@@ -4,6 +4,7 @@ import scipy.io as sio
 import matplotlib.pyplot as plt 
 import os, shutil
 import sys
+sys.path.append(os.getcwd() + '/src/')
 sys.path.append(os.getcwd() + '../externals/Pontryagin-Differentiable-Programming')
 from PDP import PDP
 from JinEnv import JinEnv
@@ -206,7 +207,7 @@ class ImitationLearning:
 
             # if self.saveFlag:
             #     self.saveEach(idx, traj, loss_his)
-
+            
             if self.plotTrajFlag:
                 self.plotTraj(state_traj, control_traj)
 
@@ -228,9 +229,7 @@ class ImitationLearning:
 
             self.iter_his += [idx]
 
-
         # --------------------------- learned full iter ---------------------------
-        
         traj = self.sysoc.ocSolver(ini_state=self.demo_ini_state, horizon=self.demo_horizon, auxvar_value = self.theta)
         state_traj = traj['state_traj_opt']
         control_traj = traj['control_traj_opt']
@@ -241,6 +240,7 @@ class ImitationLearning:
         #     self.saveEach(idx+1, traj, loss_his)
 
         # --------------------------- save all Loss ---------------------------
+        self.plotTraj(state_traj, control_traj)
         if self.saveFlag:
             self.saveAll()
         
@@ -318,9 +318,6 @@ class ImitationLearning:
             axs[-1].set_xlabel("Iteration")
             axs[0].set_title("Control Trajectory")
         plt.show()
-
-
-
 
 
 class SysID:
@@ -520,6 +517,7 @@ class SysID:
         #     self.saveEach(self.iter_his, state_traj, loss_his)
 
         # --------------------------- save all Loss ---------------------------
+        self.plotTraj(state_traj, ob_state_traj)
         if self.saveFlag:
             self.saveAll()
         
@@ -583,3 +581,284 @@ class SysID:
 
         plt.show()
 
+
+class PolicyTuning:
+    def __init__(self, project="", mode="", case="", dynsys=None, nnFactor=None, dir="", demoFile="", saveFlag=False):
+
+        self.dir = dir
+        self.saveFlag = saveFlag
+        self.plotTrajFlag = False
+        if saveFlag:
+            if os.path.exists(self.dir+"results/"):
+                shutil.rmtree(self.dir+"results/")
+            os.mkdir(self.dir+"results/")
+
+        # ------------------------------ set up system ------------------------------
+        self.project = project
+        self.mode = mode
+        self.case = case
+        self.dynsys = dynsys
+        self.n_state = dynsys.X.size()[0]
+        self.n_control = dynsys.U.size()[0]
+        
+        # ------------------------------ load demos data ------------------------------
+        data = sio.loadmat(dir+demoFile)
+        self.trajectories = data['trajectories']
+        self.dt = data['dt']
+
+        # self.dt = 0.1
+        # self.horizon = 30
+        # self.ini_state = [0,0,0,0]
+
+        # ------------------------------ initialize Classes ------------------------------
+        self.system = PDP.ControlPlanning()
+        self.system.setControlVariable(self.dynsys.U)
+        self.system.setStateVariable(self.dynsys.X)
+        self.dyn = self.dynsys.X + self.dt * self.dynsys.f
+        self.system.setDyn(self.dyn)
+        self.system.setPathCost(self.dynsys.path_cost)
+        self.system.setFinalCost(self.dynsys.final_cost)
+
+        self.system.init_step_neural_policy(hidden_layers=[nnFactor*self.system.n_state,nnFactor*self.system.n_state])
+        self.theta = np.random.randn(self.system.n_auxvar)
+
+        # self.true_system = PDP.OCSys()
+        # self.true_system.setStateVariable(self.dynsys.X)
+        # self.true_system.setControlVariable(self.dynsys.U)
+        # self.true_system.setDyn(self.dyn)
+        # self.true_system.setPathCost(self.dynsys.path_cost)
+        # self.true_system.setFinalCost(self.dynsys.final_cost)
+        # self.true_sol = self.true_system.ocSolver(ini_state=self.ini_state, horizon=self.horizon)
+        # self.demo_state_traj = self.true_sol['state_traj_opt']
+        # self.demo_control_traj = self.true_sol['control_traj_opt']
+
+        # ------------------------------ initilize tunable parameter ------------------------------
+        self.loss = 0
+        self.dp = np.zeros(self.theta.shape)
+        self.demo_state_traj = self.trajectories[0, 0]['state_traj_opt'][0, 0]
+        self.demo_control_traj = self.trajectories[0, 0]['control_traj_opt'][0, 0]
+        self.ini_state = self.demo_state_traj[0, :]
+        self.horizon = self.demo_control_traj.shape[0]
+
+        # ------------------------------ other setup ------------------------------
+        self.Loss_his = []
+        self.theta_error = []
+        self.iter_his = []
+
+    def initialize_EKF(self, P, Q, R):
+        self.P_prev = P
+        self.Q_prev = Q
+        self.R = R
+
+    def solve(self):
+        Loss = 0
+        loss_his = []
+        for idx in range(self.horizon):
+            # --------------------------- Trajectory based on current parameter guess ---------------------------------------- 
+            sol = self.system.integrateSys(ini_state=self.ini_state, horizon=self.horizon, auxvar_value=self.theta)
+            state_traj = sol['state_traj']
+            control_traj = sol['control_traj']
+
+            # --------------------------- Gradient generator, dXidtheta ---------------------------------------- 
+            aux_sys = self.system.getAuxSys(state_traj=state_traj, control_traj=control_traj, auxvar_value=self.theta)
+            # --------------------------- take solution of the auxiliary control system ---------------------------
+            aux_sol = self.system.integrateAuxSys(dynF=aux_sys['dynF'], dynG=aux_sys['dynG'],
+                                        dUx=aux_sys['dUx'], dUe=aux_sys['dUe'],
+                                        ini_condition=numpy.zeros((self.system.n_state, self.system.n_auxvar)))
+            
+            # --------------------------- take solution of the auxiliary control system ---------------------------
+            dxdtheta_traj = aux_sol['state_traj']
+            dudtheta_traj = aux_sol['control_traj']
+            
+            dxdtheta_t = dxdtheta_traj[idx]
+            dudtheta_t = dudtheta_traj[idx]
+
+            if self.case == "traj":
+                dxidtheta_t = np.vstack((dxdtheta_t, dudtheta_t))
+
+                # --------------------------- Loss function, dLdXi ---------------------------------------- 
+                xi = SX.sym("xi", self.dynsys.X.shape[0]+self.dynsys.U.shape[0])
+                demo_traj = np.hstack((self.demo_state_traj[idx], self.demo_control_traj[idx]))
+                current_traj = np.hstack((state_traj[idx], control_traj[idx]))
+            elif self.case == "state":
+                dxidtheta_t = dxdtheta_t
+                xi = SX.sym("xi", self.dynsys.X.shape[0])
+                demo_traj = self.demo_state_traj[idx]
+                current_traj = state_traj[idx]
+            else:
+                print("Case not defined!")
+                sys.exit()
+
+            loss = demo_traj - xi
+            dLdXi = jacobian(loss, xi)
+            lossFun = Function("lossFun", [xi], [loss])
+            dLdXiFun = Function("dLdXiFun", [xi], [dLdXi])
+
+            lossNow = lossFun(current_traj).full()
+            dLdXiNow = dLdXiFun(current_traj).full()
+
+            lossNorm = norm_2(lossNow)**2
+            loss_his += [lossNorm]
+            Loss += lossNorm
+            
+            # --------------------------- Chain rule ----------------------------------------
+            dLdtheta = np.matmul(dLdXiNow, dxidtheta_t)[0]
+            dp = dxidtheta_t
+
+            # --------------------------- EKF ----------------------------------------
+            updateTheta = EKF()
+            updateTheta.predict(self.theta, self.P_prev, self.Q_prev)
+            updateTheta.update(dp, self.R, lossNow)
+            print('theta = ', updateTheta.theta)
+            self.P_prev = updateTheta.P
+            self.theta = updateTheta.theta
+
+        if self.saveFlag:
+            self.saveEach(idx+1, state_traj, loss_his)
+
+    def solveAllLoss(self):
+        for iter in range(10):
+            for idx in range(self.horizon):
+                # --------------------------- Trajectory based on current parameter guess ---------------------------------------- 
+                sol = self.system.integrateSys(ini_state=self.ini_state, horizon=self.horizon, auxvar_value=self.theta)
+                state_traj = sol['state_traj']
+                control_traj = sol['control_traj']
+
+                # --------------------------- Gradient generator, dXidtheta ---------------------------------------- 
+                aux_sys = self.system.getAuxSys(state_traj=state_traj, control_traj=control_traj, auxvar_value=self.theta)
+                # --------------------------- take solution of the auxiliary control system ---------------------------
+                aux_sol = self.system.integrateAuxSys(dynF=aux_sys['dynF'], dynG=aux_sys['dynG'],
+                                            dUx=aux_sys['dUx'], dUe=aux_sys['dUe'],
+                                            ini_condition=numpy.zeros((self.system.n_state, self.system.n_auxvar)))
+        
+                # --------------------------- take solution of the auxiliary control system ---------------------------
+                dxdtheta_traj = aux_sol['state_traj']
+                dudtheta_traj = aux_sol['control_traj']
+                
+                dxdtheta_t = dxdtheta_traj[idx]
+                dudtheta_t = dudtheta_traj[idx]
+                dxidtheta_t = np.vstack((dxdtheta_t, dudtheta_t))
+
+                # --------------------------- take solution of the auxiliary control system ---------------------------
+                dxdtheta_traj = aux_sol['state_traj']
+                dudtheta_traj = aux_sol['control_traj']
+                
+                dxdtheta_t = dxdtheta_traj[idx]
+                dudtheta_t = dudtheta_traj[idx]
+                
+                if self.case == "traj":
+                    dxidtheta_t = np.vstack((dxdtheta_t, dudtheta_t))
+
+                    # --------------------------- Loss function, dLdXi ---------------------------------------- 
+                    xi = SX.sym("xi", self.dynsys.X.shape[0]+self.dynsys.U.shape[0])
+                    demo_traj = np.hstack((self.demo_state_traj[idx], self.demo_control_traj[idx]))
+                    current_traj = np.hstack((state_traj[idx], control_traj[idx]))
+                elif self.case == "state":
+                    dxidtheta_t = dxdtheta_t
+                    xi = SX.sym("xi", self.dynsys.X.shape[0])
+                    demo_traj = self.demo_state_traj[idx]
+                    current_traj = state_traj[idx]
+                else:
+                    print("Case not defined!")
+                    sys.exit()
+
+                loss = demo_traj - xi
+                dLdXi = jacobian(loss, xi)
+                lossFun = Function("lossFun", [xi], [loss])
+                dLdXiFun = Function("dLdXiFun", [xi], [dLdXi])
+
+
+                lossNow = lossFun(current_traj).full()
+                dLdXiNow = dLdXiFun(current_traj).full()
+
+                self.evaluateLoss(state_traj, control_traj)
+
+                if self.plotTrajFlag:
+                    self.plotTraj(state_traj, control_traj)
+
+                # --------------------------- Chain rule ----------------------------------------
+                dLdtheta = np.matmul(dLdXiNow, dxidtheta_t)[0]
+                dp = dxidtheta_t
+
+                # --------------------------- EKF ----------------------------------------
+                updateTheta = EKF()
+                updateTheta.predict(self.theta, self.P_prev, self.Q_prev)
+                updateTheta.update(dp, self.R, lossNow)
+                if(iter*self.horizon+idx) % 100 == 0:
+                    print('Data = ', iter*self.horizon+idx, 'Loss = ', self.Loss_his[-1])
+                self.P_prev = updateTheta.P
+                self.theta = updateTheta.theta
+
+                self.iter_his += [iter*self.horizon+idx]
+
+        # --------------------------- save all Loss ---------------------------
+        self.plotTraj(state_traj, control_traj)
+        if self.saveFlag:
+            self.saveAll()
+        
+        self.plotLoss()
+
+    def evaluateLoss(self, state_traj, control_traj):
+        Loss = 0
+        loss_his = []
+        for jdx in range(self.horizon):
+            each_traj_t = np.hstack((state_traj[jdx], control_traj[jdx]))
+            demo_traj_t = np.hstack((self.demo_state_traj[jdx], self.demo_control_traj[jdx]))
+            lossNorm = norm_2(each_traj_t-demo_traj_t)**2
+            loss_his += [lossNorm]
+            Loss += lossNorm
+        
+        self.Loss_his += [np.asarray(Loss)[0,0]]
+
+    def saveEach(self, idx, traj, loss_his):
+        sio.savemat(self.dir+"results/iter_"+str(idx)+".mat", {'trajectories': traj,
+                                                                'losses': loss_his,
+                                                                'dt': self.dt,
+                                                                'theta': self.theta})
+
+    def saveAll(self):
+        sio.savemat(self.dir+"results/Loss.mat", {'Loss': self.Loss_his})
+
+
+    def load(self, dir):
+        data = sio.loadmat(dir)
+
+
+    def plotLoss(self):
+        fig, axs = plt.subplots()
+        axs.plot(self.iter_his, self.Loss_his)
+        plt.yscale("log")
+        axs.set_xlabel("Data")
+        axs.set_ylabel("Loss")
+        axs.set_title(self.mode + ": " + self.project)
+
+        plt.show()
+
+    def plotTraj(self, state_traj, control_traj):
+
+        iter = [*range(len(state_traj))]
+        fig, axs = plt.subplots(len(state_traj[0]),1)
+        for idx in range(len(state_traj[0])):
+            axs[idx].plot(iter, state_traj[:,idx])
+            axs[idx].plot(iter, self.demo_state_traj[:,idx])
+            axs[idx].set_ylabel("x"+str(idx+1))
+        axs[-1].set_xlabel("Iteration")
+        axs[0].set_title("State Trajectory")
+
+        iter = [*range(len(control_traj))]
+        if len(control_traj[0]) == 1:
+            fig, axs = plt.subplots()
+            axs.plot(iter, control_traj)
+            axs.plot(iter, self.demo_control_traj)
+            axs.set_ylabel("u")
+            axs.set_xlabel("Iteration")
+            axs.set_title("Control Trajectory")
+        else:
+            fig, axs = plt.subplots(len(control_traj[0]),1)
+            for idx in range(len(control_traj[0])):
+                axs[idx].plot(iter, control_traj[:,idx])
+                axs[idx].plot(iter, self.demo_control_traj[:,idx])
+                axs[idx].set_ylabel("x"+str(idx+1))
+            axs[-1].set_xlabel("Iteration")
+            axs[0].set_title("Control Trajectory")
+        plt.show()
