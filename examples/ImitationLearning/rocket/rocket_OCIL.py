@@ -16,7 +16,7 @@ mode = "Objective"
 saveFlag = False
 dynsys = JinEnv.Rocket()
 dynsys.initDyn(Jx=0.5, Jy=1, Jz=1, mass=1, l=1)
-dynsys.initCost(wthrust = 0.1)
+dynsys.initCost(wthrust=0.1)
 
 dir = 'examples/ImitationLearning/rocket/data/'
 demoFile = 'rocket_demos.mat'
