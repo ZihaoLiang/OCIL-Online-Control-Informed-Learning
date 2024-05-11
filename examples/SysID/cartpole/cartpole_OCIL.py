@@ -21,6 +21,7 @@ dir = 'examples/SysID/cartpole/data/'
 demoFile = 'cartpole_iodata.mat'
 
 system = OCIL.SysID(project, mode, dynsys, dt, dir, demoFile, saveFlag)
+# system.set_iteration(10)
 
 # --------------------------- initilize EKF ----------------------------------------
 P = np.eye(3) * 0.0000001
