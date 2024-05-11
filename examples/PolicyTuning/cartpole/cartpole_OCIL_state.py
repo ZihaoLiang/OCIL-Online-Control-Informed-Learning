@@ -29,6 +29,7 @@ R = np.eye(4) * 0.0000000001
 nnFactor = 3
 
 system = OCIL.PolicyTuning(project, mode, case, dynsys, nnFactor, dir, demoFile, saveFlag)
+system.set_iteration(10)
 system.initialize_EKF(P, Q, R)
 
 # system.solve()
