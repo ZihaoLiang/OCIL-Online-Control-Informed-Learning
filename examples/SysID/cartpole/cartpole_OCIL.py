@@ -11,7 +11,7 @@ from JinEnv import JinEnv
 # ------------------------------ Set up dynamic system ------------------------------
 project = "CartPole"
 mode = "SysID"
-saveFlag = False
+saveFlag = True
 dynsys = JinEnv.CartPole()
 dynsys.initDyn()
 dynsys.initCost(wx=1,wq=6,wdx=1,wdq=1,wu = 0.1)
@@ -21,7 +21,8 @@ dir = 'examples/SysID/cartpole/data/'
 demoFile = 'cartpole_iodata.mat'
 
 system = OCIL.SysID(project, mode, dynsys, dt, dir, demoFile, saveFlag)
-# system.set_iteration(10)
+system.set_sigma = 2
+system.set_iteration(10)
 
 # --------------------------- initilize EKF ----------------------------------------
 P = np.eye(3) * 0.0000001

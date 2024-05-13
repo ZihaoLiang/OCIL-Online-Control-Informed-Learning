@@ -4,6 +4,7 @@ import scipy.io as sio
 import matplotlib.pyplot as plt 
 import os, shutil
 import sys
+import time
 sys.path.append(os.getcwd() + '/src/')
 sys.path.append(os.getcwd() + '../externals/Pontryagin-Differentiable-Programming')
 from PDP import PDP
@@ -23,9 +24,8 @@ class ImitationLearning:
         self.saveFlag = saveFlag
         self.plotTrajFlag = False
         if saveFlag:
-            if os.path.exists(self.dir+"results/"):
-                shutil.rmtree(self.dir+"results/")
-            os.mkdir(self.dir+"results/")
+            if not os.path.exists(self.dir+"results/"):
+                os.mkdir(self.dir+"results/")
 
         # ------------------------------ set up system ------------------------------
         self.project = project
@@ -222,7 +222,12 @@ class ImitationLearning:
                 updateTheta = EKF()
                 updateTheta.predict(self.theta, self.P_prev, self.Q_prev)
                 updateTheta.update(dp, self.R, lossNow)
-                print('theta = ', updateTheta.theta)
+                if self.iteration < 10:
+                    print('Data = ', iter*self.demo_horizon+idx, 'Loss = ', self.Loss_his[-1])
+                    print('theta = ', updateTheta.theta)
+                else:
+                    if(iter*self.demo_horizon+idx) % 100 == 0:
+                        print('Data = ', iter*self.demo_horizon+idx, 'Loss = ', self.Loss_his[-1])
                 self.P_prev = updateTheta.P
                 self.theta = updateTheta.theta
 
@@ -259,7 +264,8 @@ class ImitationLearning:
                                                                 'theta': self.theta})
 
     def saveAll(self):
-        sio.savemat(self.dir+"results/Loss.mat", {'Loss': self.Loss_his,
+        
+        sio.savemat(self.dir+"results/Loss_" + time.strftime("%Y%m%d%H%M%S") + ".mat", {'Loss': self.Loss_his,
                                                   'theta': self.theta_error})
 
     def load(self, dir):
@@ -317,9 +323,8 @@ class SysID:
         self.saveFlag = saveFlag
         self.plotTrajFlag = False
         if saveFlag:
-            if os.path.exists(self.dir+"results/"):
-                shutil.rmtree(self.dir+"results/")
-            os.mkdir(self.dir+"results/")
+            if not os.path.exists(self.dir+"results/"):
+                os.mkdir(self.dir+"results/")
 
         # ------------------------------ set up system ------------------------------
         self.project = project
@@ -526,8 +531,9 @@ class SysID:
                                                                 'theta': self.theta})
 
     def saveAll(self):
-        sio.savemat(self.dir+"results/Loss.mat", {'Loss': self.Loss_his,
-                                                  'theta': self.theta_error})
+        horizon = (len(self.Loss_his)-1)/self.iteration
+        sio.savemat(self.dir+"results/Loss_" + time.strftime("%Y%m%d%H%M%S") + ".mat", {'Loss': self.Loss_his,
+                                                  'horizon': horizon, 'theta': self.theta_error})
 
 
     def load(self, dir):
@@ -569,9 +575,8 @@ class PolicyTuning:
         self.saveFlag = saveFlag
         self.plotTrajFlag = False
         if saveFlag:
-            if os.path.exists(self.dir+"results/"):
-                shutil.rmtree(self.dir+"results/")
-            os.mkdir(self.dir+"results/")
+            if not os.path.exists(self.dir+"results/"):
+                os.mkdir(self.dir+"results/")
 
         # ------------------------------ set up system ------------------------------
         self.project = project
@@ -586,10 +591,6 @@ class PolicyTuning:
         self.trajectories = data['trajectories']
         self.dt = data['dt']
 
-        # self.dt = 0.1
-        # self.horizon = 30
-        # self.ini_state = [0,0,0,0]
-
         # ------------------------------ initialize Classes ------------------------------
         self.system = PDP.ControlPlanning()
         self.system.setControlVariable(self.dynsys.U)
@@ -601,16 +602,7 @@ class PolicyTuning:
 
         self.system.init_step_neural_policy(hidden_layers=[nnFactor*self.system.n_state,nnFactor*self.system.n_state])
         self.theta = np.random.randn(self.system.n_auxvar)
-
-        # self.true_system = PDP.OCSys()
-        # self.true_system.setStateVariable(self.dynsys.X)
-        # self.true_system.setControlVariable(self.dynsys.U)
-        # self.true_system.setDyn(self.dyn)
-        # self.true_system.setPathCost(self.dynsys.path_cost)
-        # self.true_system.setFinalCost(self.dynsys.final_cost)
-        # self.true_sol = self.true_system.ocSolver(ini_state=self.ini_state, horizon=self.horizon)
-        # self.demo_state_traj = self.true_sol['state_traj_opt']
-        # self.demo_control_traj = self.true_sol['control_traj_opt']
+        self.nnFactor = nnFactor
 
         # ------------------------------ initilize tunable parameter ------------------------------
         self.loss = 0
@@ -627,6 +619,42 @@ class PolicyTuning:
 
     def set_iteration(self, iteration):
         self.iteration = iteration
+
+    def generate_traj(self, dt, horizon, ini_state):
+        self.horizon = horizon
+        self.dt = dt
+        # ------------------------------ initialize Classes ------------------------------
+        self.system = PDP.ControlPlanning()
+        self.system.setControlVariable(self.dynsys.U)
+        self.system.setStateVariable(self.dynsys.X)
+        self.dyn = self.dynsys.X + self.dt * self.dynsys.f
+        self.system.setDyn(self.dyn)
+        self.system.setPathCost(self.dynsys.path_cost)
+        self.system.setFinalCost(self.dynsys.final_cost)
+
+        self.system.init_step_neural_policy(hidden_layers=[self.nnFactor*self.system.n_state,self.nnFactor*self.system.n_state])
+        self.theta = np.random.randn(self.system.n_auxvar)
+
+        # ------------------------------ initilize tunable parameter ------------------------------
+        self.loss = 0
+        self.dp = np.zeros(self.theta.shape)
+
+        # ------------------------------ other setup ------------------------------
+        self.Loss_his = []
+        self.theta_error = []
+
+        self.true_system = PDP.OCSys()
+        self.true_system.setStateVariable(self.dynsys.X)
+        self.true_system.setControlVariable(self.dynsys.U)
+        self.true_system.setDyn(self.dyn)
+        self.true_system.setPathCost(self.dynsys.path_cost)
+        self.true_system.setFinalCost(self.dynsys.final_cost)
+        self.true_sol = self.true_system.ocSolver(ini_state=ini_state, horizon=horizon)
+ 
+        self.demo_state_traj = self.true_sol['state_traj_opt']
+        self.demo_control_traj = self.true_sol['control_traj_opt']
+        self.ini_state = self.demo_state_traj[0, :]
+        print(self.true_sol['cost'])
 
     def initialize_EKF(self, P, Q, R):
         self.P_prev = P
@@ -656,7 +684,7 @@ class PolicyTuning:
             dxdtheta_t = dxdtheta_traj[idx]
             dudtheta_t = dudtheta_traj[idx]
 
-            if self.case == "traj":
+            if self.case == "traj" or "Objective":
                 dxidtheta_t = np.vstack((dxdtheta_t, dudtheta_t))
 
                 # --------------------------- Loss function, dLdXi ---------------------------------------- 
@@ -706,6 +734,7 @@ class PolicyTuning:
                 sol = self.system.integrateSys(ini_state=self.ini_state, horizon=self.horizon, auxvar_value=self.theta)
                 state_traj = sol['state_traj']
                 control_traj = sol['control_traj']
+                cost = sol['cost']
 
                 # --------------------------- Gradient generator, dXidtheta ---------------------------------------- 
                 aux_sys = self.system.getAuxSys(state_traj=state_traj, control_traj=control_traj, auxvar_value=self.theta)
@@ -729,7 +758,7 @@ class PolicyTuning:
                 dxdtheta_t = dxdtheta_traj[idx]
                 dudtheta_t = dudtheta_traj[idx]
                 
-                if self.case == "traj":
+                if self.case == "traj" or "Objective":
                     dxidtheta_t = np.vstack((dxdtheta_t, dudtheta_t))
                     # --------------------------- Loss function, dLdXi ---------------------------------------- 
                     xi = SX.sym("xi", self.dynsys.X.shape[0]+self.dynsys.U.shape[0])
@@ -752,7 +781,10 @@ class PolicyTuning:
                 lossNow = lossFun(current_traj).full()
                 dLdXiNow = dLdXiFun(current_traj).full()
 
-                self.evaluateLoss(state_traj, control_traj)
+                if self.case == 'Objective':
+                    self.Loss_his += [cost]
+                else:
+                    self.evaluateLoss(state_traj, control_traj)
 
                 if self.plotTrajFlag:
                     self.plotTraj(state_traj, control_traj)
@@ -796,7 +828,8 @@ class PolicyTuning:
                                                                 'theta': self.theta})
 
     def saveAll(self):
-        sio.savemat(self.dir+"results/Loss.mat", {'Loss': self.Loss_his})
+        sio.savemat(self.dir+"results/Loss_" + time.strftime("%Y%m%d%H%M%S") + ".mat", 
+                                    {'Loss': self.Loss_his, 'horizon': self.horizon})
 
 
     def load(self, dir):
