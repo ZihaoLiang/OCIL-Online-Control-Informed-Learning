@@ -24,7 +24,7 @@ demoFile = 'cartpole_demos.mat'
 
 system = OCIL.ImitationLearning(project, mode, dynsys, dir, demoFile, saveFlag)
 # system.set_sigma(0.7)
-# system.set_iteration(10)
+system.set_iteration(333)
 
 # --------------------------- initilize EKF ----------------------------------------
 P = np.eye(7) * 0.0000001
@@ -33,6 +33,5 @@ R = np.eye(5) * 0.0000000001
 
 system.initialize_EKF(P, Q, R)
 
-# system.solve()
-system.solveAllLoss()
+system.solve()
 

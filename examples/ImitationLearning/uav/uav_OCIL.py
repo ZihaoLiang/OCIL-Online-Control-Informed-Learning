@@ -23,6 +23,7 @@ demoFile = 'uav_demos.mat'
 
 system = OCIL.ImitationLearning(project, mode, dynsys, dir, demoFile, saveFlag)
 system.set_sigma(0.8)
+system.set_iteration(2)
 
 # --------------------------- initilize EKF ----------------------------------------
 P = np.eye(9) * 0.0000001
@@ -31,6 +32,5 @@ R = np.eye(17) * 0.0000000001
 
 system.initialize_EKF(P, Q, R)
 
-# system.solve()
-system.solveAllLoss()
+system.solve()
 
