@@ -31,5 +31,4 @@ nnFactor = 4
 system = OCIL.PolicyTuning(project, mode, case, dynsys, nnFactor, dir, demoFile, saveFlag)
 system.initialize_EKF(P, Q, R)
 
-# system.solve()
-system.solveAllLoss()
+system.solve()

@@ -29,5 +29,4 @@ R = np.eye(2) * 0.0000000001
 
 system.initialize_EKF(P, Q, R)
 
-# system.solve()
-system.solveAllLoss()
+system.solve()

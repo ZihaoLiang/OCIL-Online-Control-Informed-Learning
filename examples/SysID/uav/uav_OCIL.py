@@ -21,6 +21,8 @@ dir = 'examples/SysID/uav/data/'
 demoFile = 'uav_iodata.mat'
 
 system = OCIL.SysID(project, mode, dynsys, dt, dir, demoFile, saveFlag)
+system.set_sigma(2)
+system.set_iteration(333)
 
 # --------------------------- initilize EKF ----------------------------------------
 P = np.eye(5) * 0.0000001
@@ -29,6 +31,5 @@ R = np.eye(13) * 0.0000000001
 
 system.initialize_EKF(P, Q, R)
 
-# system.solve()
-system.solveAllLoss()
+system.solve()
 

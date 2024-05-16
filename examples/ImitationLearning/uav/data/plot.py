@@ -83,19 +83,24 @@ nn_iter = [x*horizon for x in nn_iter]
 
 # plot results
 for OCIL_loss, kkt_loss, pdp_loss, nn_loss in zip(OCIL_loss_list, kkt_loss_list, pdp_loss_list, nn_loss_list):
-    ax.plot(OCIL_loss[:horizon], color='b', linewidth=4)
-    ax.plot(OCIL_iter[horizon:], OCIL_loss[horizon:], color='b', linestyle='--', linewidth=4)
     ax.plot(kkt_iter, kkt_loss[0:], color=[0.9290, 0.6940, 0.1250], linewidth=4)
     ax.plot(nn_iter, nn_loss[0:], color=[0.4660, 0.6740, 0.1880], linewidth=4)
     ax.plot(pdp_iter, pdp_loss, color = [0.6350, 0.0780, 0.1840], linewidth=4)
-ax.axvline(horizon, color='r', linewidth=4)
 
 # show legend
-line_OCIL, = ax.plot(OCIL_loss_list[0][:horizon], color='b', linewidth=4)
-line_OCIL_dashed, = ax.plot(OCIL_iter[horizon:], OCIL_loss_list[0][horizon:], color='b', linestyle='--', linewidth=4)
 line_pdp,=ax.plot(pdp_iter, pdp_loss_list[0], color = [0.6350, 0.0780, 0.1840], linewidth=4)
 line_kkt,=ax.plot(kkt_iter, kkt_loss_list[0][0:], color=[0.9290, 0.6940, 0.1250], linewidth=4)
 line_nn,=ax.plot(nn_iter, nn_loss_list[0][0:], color=[0.4660, 0.6740, 0.1880], linewidth=4)
+
+for OCIL_loss in OCIL_loss_list:
+    ax.plot(OCIL_loss[:horizon], color='b', linewidth=4)
+    ax.plot(OCIL_iter[horizon:], OCIL_loss[horizon:], color='b', linestyle='--', linewidth=4)
+
+line_OCIL, = ax.plot(OCIL_loss_list[0][:horizon], color='b', linewidth=4)
+line_OCIL_dashed, = ax.plot(OCIL_iter[horizon:], OCIL_loss_list[0][horizon:], color='b', linestyle='--', linewidth=4)
+
+ax.axvline(horizon, color='r', linewidth=4)
+
 ax.legend([line_OCIL,line_OCIL_dashed,line_pdp,line_kkt,line_nn],['OCIL (Proposed), Online','OCIL (Proposed), Offline','PDP','Inverse KKT','Neural policy'],
             facecolor='white',framealpha=0.5,loc=3)
 plt.show()
