@@ -113,6 +113,24 @@ ax.legend([line_OCIL,line_pdp],['OCIL (Proposed)','PDP with Poly Policy'],
             facecolor='white',framealpha=0.5,loc=1, fontsize=24)
 
 
+# load OCIL online results
+online_loss_list = []
+for i in range(1000):
+    load = sio.loadmat('online/results_' + str(i))
+    loss_trace = load['Loss'][0]
+    online_loss_list += [loss_trace-true_cost]
+
+online_iter = list(range(0, len(online_loss_list[0])))
+
+online_avg = np.mean(online_loss_list, 0)
+online_std = np.std(online_loss_list, 0)
+online_ub = online_avg + 3*online_std
+online_lb = online_avg - 3*online_std
+for i in range(len(online_lb)):
+    if online_lb[i] < 0:
+        online_lb[i] = 0
+
+
 fig2 = plt.figure(figsize=(11, 9))
 
 divider2 = Divider(fig2, (0.0, 0.0, 1., 1.), h, v, aspect=False)
@@ -125,8 +143,8 @@ fig2.add_axes(ax2)
 
 # ax2.set_xscale('symlog')
 # ax2.set_yscale('log')
-# ax2.ticklabel_format(axis='y', style='sci', scilimits=(4,4))
-# ax2.set_xlim(0,30)
+ax2.ticklabel_format(axis='y', style='sci', scilimits=(4,4))
+ax2.set_xlim(0,60)
 ax2.set_ylim(bottom=0,top=5000000)
 ax2.set_xlabel('Number of Data Points')
 ax2.set_ylabel('Policy Tuning Loss')

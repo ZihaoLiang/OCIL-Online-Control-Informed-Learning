@@ -553,7 +553,7 @@ class PolicyTuning:
         self.demo_state_traj = self.true_sol['state_traj_opt']
         self.demo_control_traj = self.true_sol['control_traj_opt']
         self.ini_state = self.demo_state_traj[0, :]
-        print(self.true_sol['cost'])
+        print("Optimal cost:", self.true_sol['cost'])
 
         if self.saveFlag:
             sio.savemat(self.dir+"results/demo.mat", {'state_traj': self.demo_state_traj,
@@ -658,6 +658,7 @@ class PolicyTuning:
             self.saveAll()
         
         self.plotLoss()
+        return self.Loss_his
 
     def evaluateLoss(self, state_traj, control_traj):
         Loss = 0
