@@ -105,6 +105,23 @@ ax.legend([line_OCIL,line_pdp,line_gps],['OCIL (Proposed)','PDP with Neural Poli
             facecolor='white',framealpha=0.5,loc=1, fontsize=24)
 
 
+# load OCIL online results
+online_loss_list = []
+for i in range(1000):
+    load = sio.loadmat('online/results_' + str(i))
+    loss_trace = load['Loss'][0]
+    online_loss_list += [loss_trace-true_cost]
+
+online_iter = list(range(0, len(online_loss_list[0])))
+
+online_avg = np.mean(online_loss_list, 0)
+online_std = np.std(online_loss_list, 0)
+online_ub = online_avg + 3*online_std
+online_lb = online_avg - 3*online_std
+for i in range(len(online_lb)):
+    if online_lb[i] < 0:
+        online_lb[i] = 0
+
 fig2 = plt.figure(figsize=(11, 9))
 
 divider2 = Divider(fig2, (0.0, 0.0, 1., 1.), h, v, aspect=False)
@@ -129,8 +146,8 @@ ax2.set_position([1,1,10,6])
 
 # for OCIL_loss in OCIL_loss_list:
 #     ax2.plot(OCIL_loss[:horizon], color='b', linewidth=4)
-ax2.plot(OCIL_avg[:horizon], color='b', linewidth=4)
-ax2.fill_between(OCIL_iter[:horizon], OCIL_lb[:horizon], OCIL_ub[:horizon], color='lightskyblue')
+ax2.plot(online_avg, color='b', linewidth=4)
+ax2.fill_between(online_iter, online_lb, online_ub, color='lightskyblue')
 
 
 plt.show()

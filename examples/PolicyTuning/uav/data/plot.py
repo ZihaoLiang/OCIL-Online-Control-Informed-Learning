@@ -104,6 +104,25 @@ ax.fill_between(OCIL_iter, OCIL_lb, OCIL_ub, color='lightskyblue')
 ax.legend([line_OCIL,line_pdp,line_ilqr],['OCIL (Proposed)','PDP with Poly Policy','iLQR'],
             facecolor='white',framealpha=0.5,loc=1, fontsize=24)
 
+
+# load OCIL online results
+online_loss_list = []
+for i in range(1000):
+    load = sio.loadmat('online/results_' + str(i))
+    loss_trace = load['Loss'][0]
+    online_loss_list += [loss_trace-true_cost]
+
+online_iter = list(range(0, len(online_loss_list[0])))
+
+online_avg = np.mean(online_loss_list, 0)
+online_std = np.std(online_loss_list, 0)
+online_ub = online_avg + 3*online_std
+online_lb = online_avg - 3*online_std
+for i in range(len(online_lb)):
+    if online_lb[i] < 0:
+        online_lb[i] = 0
+
+
 fig2 = plt.figure(figsize=(11, 9))
 
 divider2 = Divider(fig2, (0.0, 0.0, 1., 1.), h, v, aspect=False)

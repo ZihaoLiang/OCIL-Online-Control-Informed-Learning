@@ -20,6 +20,7 @@ dynsys.initCost(wr=1, wv=1, wq=5, ww=1)
 
 dir = 'examples/PolicyTuning/uav/data/'
 demoFile = 'uav_demos.mat'
+run = 1
 
 # --------------------------- initilize ----------------------------------------
 P = np.eye(1174) * 0.000000001
@@ -39,6 +40,17 @@ ini_v_I = [0.0, 0.0, 0.0]
 ini_q = JinEnv.toQuaternion(0, [1, -1, 1])
 ini_w = [0.0, 0.0, 0.0]
 ini_state = ini_r_I + ini_v_I + ini_q + ini_w
-system.generate_traj(dt, horizon, ini_state)
 
-system.solve()
+if run == 1:
+    ## single run ##
+    system.initialize_EKF(P, Q, R)
+    system.generate_traj(dt, horizon, ini_state)
+    system.solve()
+else: 
+    ## multiple runs ##
+    for idx in range(run):
+        system.initialize_EKF(P, Q, R)
+        system.generate_traj(dt, horizon, ini_state)
+        Loss = system.solve()
+        print('Test = ', idx, 'Loss = ', Loss[-1])
+        sio.savemat(dir+"online/results_"+str(idx)+".mat", {'Loss': Loss})
