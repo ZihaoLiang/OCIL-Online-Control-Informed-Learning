@@ -315,12 +315,29 @@ class SysID:
     def set_iteration(self, iteration):
         self.iteration = iteration
 
+    def initialize_nn_parameter(self):
+
+        self.theta = np.random.randn(self.sysid.n_auxvar)
+
+        self.batch_states_nn = []
+        for idx in range(self.n_batch):
+            input_traj = self.batch_inputs[idx]
+            ini_state = self.batch_states[idx][0, :]
+            self.batch_states_nn += [self.sysid.integrateDyn(ini_state=ini_state, inputs=input_traj, auxvar_value=self.theta)]
+        
+        self.batch_states = self.batch_states_nn
+
+        self.true_theta = self.theta
+        self.theta = self.true_theta + self.sigma * np.random.random(len(self.true_theta)) - self.sigma / 2
+        self.dp = np.zeros(self.theta.shape)
+
     def initialize_EKF(self, P, Q, R):
         self.P_prev = P
         self.Q_prev = Q
         self.R = R
 
     def solve(self):
+        n_data = 0
         for iter in range(self.iteration):
             for batches in range(self.n_batch):
                 input_traj = self.batch_inputs[batches]
@@ -365,7 +382,7 @@ class SysID:
                         loss += self.evaluateLoss(state_traj_j, ob_state_traj_j, horizon_j)
 
                     self.Loss_his += [loss]
-                    self.theta_error += [np.asarray(norm_2(self.theta-self.true_theta)**2)[0,0]]
+                    # self.theta_error += [np.asarray(norm_2(self.theta-self.true_theta)**2)[0,0]]
 
                     self.evaluateLoss(state_traj, ob_state_traj, horizon)
 
@@ -380,9 +397,14 @@ class SysID:
                     updateTheta = EKF()
                     updateTheta.predict(self.theta, self.P_prev, self.Q_prev)
                     updateTheta.update(dp, self.R, lossNow)
-                    print('theta = ', updateTheta.theta)
+                    if n_data < 100:
+                        print('Data = ', n_data, 'Loss = ', self.Loss_his[-1])
+                    else:
+                        if(n_data) % 100 == 0:
+                            print('Data = ', n_data, 'Loss = ', self.Loss_his[-1])
                     self.P_prev = updateTheta.P
                     self.theta = updateTheta.theta
+                    n_data += 1
 
         # --------------------------- learned full iter ---------------------------
         # --------------------------- Trajectory based on current parameter guess ---------------------------------------- 
