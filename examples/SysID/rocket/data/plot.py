@@ -27,7 +27,7 @@ fig.add_axes(ax)
 ax.set_xscale('symlog')
 ax.set_yscale('log')
 ax.set_xlim(0,10000)
-ax.set_ylim(bottom=1e-8,top=1e4)
+ax.set_ylim(bottom=1e-8,top=1e5)
 ax.set_xlabel('Number of Data Points')
 ax.set_ylabel('SysID Loss')
 ax.tick_params(axis='both', which='major')
@@ -46,19 +46,6 @@ for i in range(5):
 
 OCIL_iter = list(range(0, len(OCIL_loss_list[0])))
 
-# # load dmd results
-# dmd_loss_list = []
-# for i in range(5):
-#     load = sio.loadmat('DMD_results_trial_' + str(i))
-#     loss_trace = load['results']['loss_trace'][0, 0].flatten()
-#     index = np.argwhere(loss_trace > 1000)
-#     loss_trace[index] = loss_trace[
-#         index - 1]  # remove the spikes inside the data (only for kkt results, because it is too bad)
-#     dmd_loss_list += [loss_trace]
-
-# dmd_iter = list(range(0, len(dmd_loss_list[0])))
-# dmd_iter = [x*horizon for x in dmd_iter]
-
 # load pdp results
 pdp_loss_list = []
 for i in range(5):
@@ -69,24 +56,13 @@ for i in range(5):
 pdp_iter = list(range(0, len(pdp_loss_list[0])))
 pdp_iter = [x*horizon for x in pdp_iter]
 
-# load nn results
-nn_loss_list = []
-for i in range(5):
-    load = sio.loadmat('NN_results_trial_' + str(i))
-    loss_trace = load['results']['nn_loss_trace'][0, 0].flatten()
-    nn_loss_list += [loss_trace]
-
-nn_iter = list(range(0, len(nn_loss_list[0])))
-nn_iter = [100*x*horizon for x in nn_iter]
 
 # plot results
-for pdp_loss, nn_loss in zip(pdp_loss_list, nn_loss_list):
+for pdp_loss in pdp_loss_list:
     ax.plot(pdp_iter, pdp_loss, color = [0.6350, 0.0780, 0.1840], linewidth=4)
-    ax.plot(nn_iter, nn_loss[0:], color=[0.4660, 0.6740, 0.1880], linewidth=4)
 
 # show legend
 line_pdp,=ax.plot(pdp_iter, pdp_loss_list[0], color = [0.6350, 0.0780, 0.1840], linewidth=4)
-line_nn,=ax.plot(nn_iter, nn_loss_list[0][0:], color=[0.4660, 0.6740, 0.1880], linewidth=4)
 
 for OCIL_loss in OCIL_loss_list:
     ax.plot(OCIL_loss[:horizon], color='b', linewidth=4)
@@ -96,9 +72,8 @@ line_OCIL, = ax.plot(OCIL_loss_list[0][:horizon], color='b', linewidth=4)
 line_OCIL_dashed, = ax.plot(OCIL_iter[horizon:], OCIL_loss_list[0][horizon:], color='b', linestyle='--', linewidth=4)
 
 ax.axvline(horizon, color='r', linewidth=4)
-ax.legend([line_OCIL,line_OCIL_dashed,line_pdp,line_nn],['OCIL (Proposed), Online','OCIL (Proposed), Offline','PDP','NN Dynamics'],
-            facecolor='white',framealpha=0.5,loc=3, fontsize=24)
-
+ax.legend([line_OCIL,line_OCIL_dashed,line_pdp],['OCIL (Proposed), Online','OCIL (Proposed), Offline','PDP'],
+            facecolor='white',framealpha=0.5,loc=1, fontsize=24)
 
 
 # load nn OCIL results
@@ -108,7 +83,6 @@ for i in range(5):
     loss_trace = load['Loss'][0]
     OCILnn_loss_list += [loss_trace]
     horizon = int(load['horizon'])
-    print(loss_trace[-1])
 
 # load nn pdp results
 pdpnn_loss_list = []
@@ -119,6 +93,16 @@ for i in range(5):
 
 pdpnn_iter = list(range(0, len(pdpnn_loss_list[0])))
 pdpnn_iter = [x*horizon for x in pdpnn_iter]
+
+# load nn results
+nn_loss_list = []
+for i in range(5):
+    load = sio.loadmat('NN_results_trial_' + str(i))
+    loss_trace = load['results']['nn_loss_trace'][0, 0].flatten()
+    nn_loss_list += [loss_trace]
+
+nn_iter = list(range(0, len(nn_loss_list[0])))
+nn_iter = [100*x*horizon for x in nn_iter]
 
 params = {'axes.labelsize': 40,
           'axes.titlesize': 30,
@@ -149,19 +133,19 @@ ax2.set_facecolor('#E6E6E6')
 ax2.grid()
 ax2.set_position([1,1,10,6])
 
-for OCIL_loss in OCILnn_loss_list:
-    ax2.plot(OCIL_loss, color='b', linewidth=4)
+for nn_loss in nn_loss_list:
+    ax2.plot(nn_iter, nn_loss[0:], color=[0.4660, 0.6740, 0.1880], linewidth=4)
+line_nn,=ax2.plot(nn_iter, nn_loss_list[0][0:], color=[0.4660, 0.6740, 0.1880], linewidth=4)
 
-line_OCILnn, = ax2.plot(OCILnn_loss_list[0], color='b', linewidth=4)
-
-# plot results
 for pdp_loss in pdpnn_loss_list:
     ax2.plot(pdpnn_iter, pdp_loss, color = [0.6350, 0.0780, 0.1840], linewidth=4)
-
-# show legend
 line_pdpnn,=ax2.plot(pdpnn_iter, pdpnn_loss_list[0], color = [0.6350, 0.0780, 0.1840], linewidth=4)
 
-ax2.legend([line_OCILnn,line_pdpnn],['OCIL (Proposed)','PDP'],
+for OCIL_loss in OCILnn_loss_list:
+    ax2.plot(OCIL_loss, color='b', linewidth=4)
+line_OCILnn, = ax2.plot(OCILnn_loss_list[0], color='b', linewidth=4)
+
+ax2.legend([line_OCILnn,line_pdpnn,line_nn],['OCIL (Proposed)','PDP','Pytorch Adam'],
             facecolor='white',framealpha=0.5,loc=1, fontsize=24)
 
 plt.show()
