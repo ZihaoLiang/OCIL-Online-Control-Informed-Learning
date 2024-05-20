@@ -1,6 +1,0 @@
-{
-    "python.analysis.extraPaths": [
-        "./externals/Pontryagin-Differentiable-Programming",
-        "./externals/Pontryagin-Differentiable-Programming/ControlTool"
-    ]
-}
