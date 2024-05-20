@@ -9,31 +9,31 @@ import OCIL
 import JinEnv_NN
 
 # ------------------------------ Set up dynamic system ------------------------------
-project = "CartPole"
+project = "Rocket"
 mode = "SysID"
 saveFlag = False
-dynsys = JinEnv_NN.CartPole()
+dynsys = JinEnv_NN.Rocket()
 dynsys.initDyn()
-dt = 0.05
+dt = 0.2
 
 #initialize neural synamic
-nnFactor = 3
+nnFactor = 1
 n_state = dynsys.X.size()[0]
 n_control = dynsys.U.size()[0]
 dynsys.initNeuralDyn(hidden_layers=[nnFactor*(n_state+n_control), nnFactor*(n_state+n_control)])
 
 
-dir = 'examples/SysID/cartpole/data/'
-demoFile = 'cartpole_iodata.mat'
+dir = 'examples/SysID/rocket/data/'
+demoFile = 'rocket_iodata.mat'
 
 system = OCIL.SysID(project, mode, dynsys, dt, dir, demoFile, saveFlag)
 system.initialize_nn_parameter()
-system.set_iteration(100)
+system.set_iteration(1000)
 
 # --------------------------- initialize EKF ----------------------------------------
-P = np.eye(dynsys.n_auxvar) * 0.0000001
+P = np.eye(dynsys.n_auxvar) * 0.00000001
 Q = np.eye(dynsys.n_auxvar) * 0.
-R = np.eye(4) * 0.0000000001
+R = np.eye(13) * 0.0000000001
 
 system.initialize_EKF(P, Q, R)
 

@@ -98,4 +98,70 @@ line_OCIL_dashed, = ax.plot(OCIL_iter[horizon:], OCIL_loss_list[0][horizon:], co
 ax.axvline(horizon, color='r', linewidth=4)
 ax.legend([line_OCIL,line_OCIL_dashed,line_pdp,line_nn],['OCIL (Proposed), Online','OCIL (Proposed), Offline','PDP','NN Dynamics'],
             facecolor='white',framealpha=0.5,loc=3, fontsize=24)
+
+
+
+# load nn OCIL results
+OCILnn_loss_list = []
+for i in range(5):
+    load = sio.loadmat('nn_dynamic_results_' + str(i))
+    loss_trace = load['Loss'][0]
+    OCILnn_loss_list += [loss_trace]
+    horizon = int(load['horizon'])
+    print(loss_trace[-1])
+
+# load nn pdp results
+pdpnn_loss_list = []
+for i in range(5):
+    load = sio.loadmat('PDP_SysID_nn_results_trial_' + str(i))
+    loss_trace = load['results']['loss_trace'][0, 0].flatten()
+    pdpnn_loss_list += [loss_trace]
+
+pdpnn_iter = list(range(0, len(pdpnn_loss_list[0])))
+pdpnn_iter = [x*horizon for x in pdpnn_iter]
+
+params = {'axes.labelsize': 40,
+          'axes.titlesize': 30,
+          'xtick.labelsize':30,
+          'ytick.labelsize':30,
+          'legend.fontsize':24}
+plt.rcParams.update(params)
+
+fig2 = plt.figure(figsize=(11, 9))
+
+divider2 = Divider(fig2, (0.0, 0.0, 1., 1.), h, v, aspect=False)
+# the width and height of the rectangle is ignored.
+
+ax2 = Axes(fig2, divider2.get_position())
+ax2.set_axes_locator(divider2.new_locator(nx=1, ny=1))
+
+fig2.add_axes(ax2)
+
+# ax2.set_xscale('symlog')
+ax2.set_yscale('log')
+ax2.set_xlim(-400,20000)
+# ax2.set_ylim(bottom=1e-8,top=1e4)
+ax2.ticklabel_format(axis='x', style='sci', scilimits=(4,4))
+ax2.set_xlabel('Number of Data Points')
+ax2.set_ylabel('SysID Loss')
+ax2.tick_params(axis='both', which='major')
+ax2.set_facecolor('#E6E6E6')
+ax2.grid()
+ax2.set_position([1,1,10,6])
+
+for OCIL_loss in OCILnn_loss_list:
+    ax2.plot(OCIL_loss, color='b', linewidth=4)
+
+line_OCILnn, = ax2.plot(OCILnn_loss_list[0], color='b', linewidth=4)
+
+# plot results
+for pdp_loss in pdpnn_loss_list:
+    ax2.plot(pdpnn_iter, pdp_loss, color = [0.6350, 0.0780, 0.1840], linewidth=4)
+
+# show legend
+line_pdpnn,=ax2.plot(pdpnn_iter, pdpnn_loss_list[0], color = [0.6350, 0.0780, 0.1840], linewidth=4)
+
+ax2.legend([line_OCILnn,line_pdpnn],['OCIL (Proposed)','PDP'],
+            facecolor='white',framealpha=0.5,loc=1, fontsize=24)
+
 plt.show()

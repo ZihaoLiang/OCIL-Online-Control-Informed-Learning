@@ -266,7 +266,6 @@ class SysID:
         self.mode = mode
         self.dynsys = dynsys
         self.num_dyn_auxvar = dynsys.dyn_auxvar.shape[0]
-        self.num_cost_auxvar = dynsys.cost_auxvar.shape[0]
         
         # ------------------------------ load demos data ------------------------------
         data = sio.loadmat(dir+demoFile)
@@ -316,19 +315,7 @@ class SysID:
         self.iteration = iteration
 
     def initialize_nn_parameter(self):
-
-        self.theta = np.random.randn(self.sysid.n_auxvar)
-
-        self.batch_states_nn = []
-        for idx in range(self.n_batch):
-            input_traj = self.batch_inputs[idx]
-            ini_state = self.batch_states[idx][0, :]
-            self.batch_states_nn += [self.sysid.integrateDyn(ini_state=ini_state, inputs=input_traj, auxvar_value=self.theta)]
-        
-        self.batch_states = self.batch_states_nn
-
-        self.true_theta = self.theta
-        self.theta = self.true_theta + self.sigma * np.random.random(len(self.true_theta)) - self.sigma / 2
+        self.theta = np.random.random(self.sysid.n_auxvar)
         self.dp = np.zeros(self.theta.shape)
 
     def initialize_EKF(self, P, Q, R):
@@ -381,7 +368,7 @@ class SysID:
                         state_traj_j = self.sysid.integrateDyn(ini_state=ini_state_j, inputs=input_traj_j, auxvar_value=self.theta)
                         loss += self.evaluateLoss(state_traj_j, ob_state_traj_j, horizon_j)
 
-                    self.Loss_his += [loss]
+                    self.Loss_his += [loss/self.n_batch]
                     # self.theta_error += [np.asarray(norm_2(self.theta-self.true_theta)**2)[0,0]]
 
                     self.evaluateLoss(state_traj, ob_state_traj, horizon)
@@ -407,14 +394,6 @@ class SysID:
                     n_data += 1
 
         # --------------------------- learned full iter ---------------------------
-        # --------------------------- Trajectory based on current parameter guess ---------------------------------------- 
-        state_traj = self.sysid.integrateDyn(ini_state=ini_state, inputs=input_traj, auxvar_value=self.theta)
-        # --------------------------- Gradient generator, dXidtheta ---------------------------------------- 
-        aux_sys = self.sysid.getAuxSys(state_traj=state_traj, control_traj=input_traj, auxvar_value=self.theta)
-        aux_sol = self.sysid.integrateAuxSys(dynF=aux_sys['dynF'],
-                                        dynE=aux_sys['dynE'],
-                                        ini_condition=np.zeros((self.sysid.n_state, self.sysid.n_auxvar)))
-
         loss = 0
         for jdx in range(self.n_batch):
             input_traj_j = self.batch_inputs[jdx]
@@ -425,7 +404,7 @@ class SysID:
             state_traj_j = self.sysid.integrateDyn(ini_state=ini_state_j, inputs=input_traj_j, auxvar_value=self.theta)
             loss += self.evaluateLoss(state_traj_j, ob_state_traj_j, horizon_j)
 
-        self.Loss_his += [loss]
+        self.Loss_his += [loss/self.n_batch]
 
         # --------------------------- save all Loss ---------------------------
         self.plotTraj(state_traj, ob_state_traj)
@@ -455,7 +434,7 @@ class SysID:
     def saveAll(self):
         horizon = (len(self.Loss_his)-1)/self.iteration
         sio.savemat(self.dir+"results/Loss_" + time.strftime("%Y%m%d%H%M%S") + ".mat", {'Loss': self.Loss_his,
-                                                  'horizon': horizon, 'theta': self.theta_error})
+                                                  'horizon': horizon})
 
     def load(self, dir):
         data = sio.loadmat(dir)

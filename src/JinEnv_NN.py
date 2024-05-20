@@ -396,7 +396,7 @@ class CartPole:
     def initNeuralDyn(self, hidden_layers):
         # Use neural network to represent the dynamic.
         # Note that here we use auxvar to denote the parameter of the neural dynamic
-        layers = hidden_layers + [1]
+        layers = hidden_layers + [self.X.shape[0]]
 
         g = 10
         self.x, self.q, self.dx, self.dq = SX.sym('x'), SX.sym('q'), SX.sym('dx'), SX.sym('dq')
@@ -679,6 +679,62 @@ class Quadrotor:
         self.X = vertcat(self.r_I, self.v_I, self.q, self.w_B)
         self.U = self.T_B
         self.f = vertcat(dr_I, dv_I, dq, dw)
+
+    def initNeuralDyn(self, hidden_layers):
+        # Use neural network to represent the dynamic.
+        # Note that here we use auxvar to denote the parameter of the neural dynamic
+        layers = hidden_layers + [self.X.shape[0]]
+
+        g = 10
+        # Angular moment of inertia
+        self.J_B = diag(vertcat(self.Jx, self.Jy, self.Jz))
+        # Gravity
+        self.g_I = vertcat(0, 0, -g)
+        # Mass of rocket, assume is little changed during the landing process
+        self.m = self.mass
+
+        # total thrust in body frame
+        thrust = self.T_B[0] + self.T_B[1] + self.T_B[2] + self.T_B[3]
+        self.thrust_B = vertcat(0, 0, thrust)
+        # total moment M in body frame
+        Mx = -self.T_B[1] * self.l / 2 + self.T_B[3] * self.l / 2
+        My = -self.T_B[0] * self.l / 2 + self.T_B[2] * self.l / 2
+        Mz = (self.T_B[0] - self.T_B[1] + self.T_B[2] - self.T_B[3]) * self.c
+        self.M_B = vertcat(Mx, My, Mz)
+
+        # cosine directional matrix
+        C_B_I = self.dir_cosine(self.q)  # inertial to body
+        C_I_B = transpose(C_B_I)  # body to inertial
+
+        # Newton's law
+        dr_I = self.v_I
+        dv_I = 1 / self.m * mtimes(C_I_B, self.thrust_B) + self.g_I
+        # Euler's law
+        dq = 1 / 2 * mtimes(self.omega(self.w_B), self.q)
+        dw = mtimes(inv(self.J_B), self.M_B - mtimes(mtimes(self.skew(self.w_B), self.J_B), self.w_B))
+
+        self.X = vertcat(self.r_I, self.v_I, self.q, self.w_B)
+        self.U = self.T_B
+
+        # construct the neural policy with the argument inputs to specify the hidden layers of the neural policy
+        a = vertcat(self.X, self.U)
+        dyn_auxvar = []
+        Ak = SX.sym('Ak', layers[0], self.X.size()[0]+self.U.size()[0])  # weights matrix
+        bk = SX.sym('bk', layers[0])  # bias vector
+        dyn_auxvar += [Ak.reshape((-1, 1))]
+        dyn_auxvar += [bk]
+        a = mtimes(Ak, a) + bk
+        for i in range(len(layers)-1):
+            a = tanh(a)
+            Ak = SX.sym('Ak', layers[i+1], layers[i])  # weights matrix
+            bk = SX.sym('bk', layers[i+1])  # bias vector
+            dyn_auxvar += [Ak.reshape((-1, 1))]
+            dyn_auxvar += [bk]
+            a = mtimes(Ak, a) + bk
+        self.dyn_auxvar=vcat(dyn_auxvar)
+        self.n_auxvar = self.dyn_auxvar.shape[0]
+        self.f = a
+
 
     def initCost(self, wr=None, wv=None, wq=None, ww=None, wthrust=0.1):
 
@@ -1012,6 +1068,54 @@ class Rocket:
         self.X = vertcat(self.r_I, self.v_I, self.q, self.w_B)
         self.U = self.T_B
         self.f = vertcat(dr_I, dv_I, dq, dw)
+
+    def initNeuralDyn(self, hidden_layers):
+        # Use neural network to represent the dynamic.
+        # Note that here we use auxvar to denote the parameter of the neural dynamic
+        layers = hidden_layers + [self.X.shape[0]]
+
+        g = 10
+        # Angular moment of inertia
+        self.J_B = diag(vertcat(self.Jx, self.Jy, self.Jz))
+        # Gravity
+        self.g_I = vertcat(-g, 0, 0)
+        # Vector from thrust point to CoM
+        self.r_T_B = vertcat(-self.l / 2, 0, 0)
+        # Mass of rocket, assume is little changed during the landing process
+        self.m = self.mass
+
+        C_B_I = self.dir_cosine(self.q)
+        C_I_B = transpose(C_B_I)
+
+        dr_I = self.v_I
+        dv_I = 1 / self.m * mtimes(C_I_B, self.T_B) + self.g_I
+
+        dq = 1 / 2 * mtimes(self.omega(self.w_B), self.q)
+        dw = mtimes(inv(self.J_B),
+                    mtimes(self.skew(self.r_T_B), self.T_B) -
+                    mtimes(mtimes(self.skew(self.w_B), self.J_B), self.w_B))
+
+        self.X = vertcat(self.r_I, self.v_I, self.q, self.w_B)
+        self.U = self.T_B
+
+        # construct the neural policy with the argument inputs to specify the hidden layers of the neural policy
+        a = vertcat(self.X, self.U)
+        dyn_auxvar = []
+        Ak = SX.sym('Ak', layers[0], self.X.size()[0]+self.U.size()[0])  # weights matrix
+        bk = SX.sym('bk', layers[0])  # bias vector
+        dyn_auxvar += [Ak.reshape((-1, 1))]
+        dyn_auxvar += [bk]
+        a = mtimes(Ak, a) + bk
+        for i in range(len(layers)-1):
+            a = tanh(a)
+            Ak = SX.sym('Ak', layers[i+1], layers[i])  # weights matrix
+            bk = SX.sym('bk', layers[i+1])  # bias vector
+            dyn_auxvar += [Ak.reshape((-1, 1))]
+            dyn_auxvar += [bk]
+            a = mtimes(Ak, a) + bk
+        self.dyn_auxvar=vcat(dyn_auxvar)
+        self.n_auxvar = self.dyn_auxvar.shape[0]
+        self.f = a
 
     def initCost(self, wr=None, wv=None, wtilt=None, ww=None, wsidethrust=None, wthrust=1.0):
 

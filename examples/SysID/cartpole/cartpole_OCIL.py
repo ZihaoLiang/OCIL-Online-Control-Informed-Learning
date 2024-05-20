@@ -14,7 +14,6 @@ mode = "SysID"
 saveFlag = False
 dynsys = JinEnv.CartPole()
 dynsys.initDyn()
-dynsys.initCost(wx=1,wq=6,wdx=1,wdq=1,wu = 0.1)
 dt = 0.05
 
 dir = 'examples/SysID/cartpole/data/'
