@@ -6,7 +6,7 @@ import sys
 sys.path.append(os.getcwd() + '/src')
 sys.path.append(os.getcwd() + '/externals/Pontryagin-Differentiable-Programming')
 import OCIL
-from JinEnv import JinEnv
+import JinEnv_nnObj
 
 
 
@@ -14,12 +14,12 @@ from JinEnv import JinEnv
 project = "CartPole"
 mode = "Objective"
 saveFlag = False
-dynsys = JinEnv.CartPole()
+dynsys = JinEnv_nnObj.CartPole()
 dynsys.initDyn(mc=0.5, mp=0.5, l=1)
 # dynsys.initCost(wu = 0.1)
 
 #initialize neural cost
-nnFactor = 5
+nnFactor = 3
 n_state = dynsys.X.size()[0]
 dynsys.initNeuralCost(hidden_layers=[nnFactor*n_state, nnFactor*n_state],\
                        wu=0.0001)  #neural objective
@@ -28,6 +28,8 @@ dir = 'examples/ImitationLearning/cartpole/data/'
 demoFile = 'cartpole_demos.mat'
 
 system = OCIL.ImitationLearning(project, mode, dynsys, dir, demoFile, saveFlag)
+system.initialize_nn_parameter()
+# system.set_iteration(10)
 
 # --------------------------- initialize EKF ----------------------------------------
 # P = np.eye(4) * 0.0000001
@@ -41,6 +43,5 @@ R = np.eye(5) * 0.0000000001
 
 system.initialize_EKF(P, Q, R)
 
-# system.solve()
-system.solveAllLoss()
+system.solve()
 

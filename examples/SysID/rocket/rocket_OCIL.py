@@ -14,7 +14,6 @@ mode = "SysID"
 saveFlag = False
 dynsys = JinEnv.Rocket()
 dynsys.initDyn()
-dynsys.initCost(wr=1, wv=1, wtilt=50, ww=1, wsidethrust=1, wthrust=0.1)
 dt = 0.2
 
 dir = 'examples/SysID/rocket/data/'
