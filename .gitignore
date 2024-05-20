@@ -1,4 +1,5 @@
 __pycache__/
+.vscode/
 src/__pycache__/
 *.DS_Store
 comparisons/Iterative IOC/__pycache__/
