@@ -14,9 +14,23 @@ differentiating the optimality conditions into a second, linear control problem.
 An extended Kalman filter then treats those parameters as a hidden state and
 corrects them with each new observation.
 
-There are no epochs, no replay buffer and no batch to wait for. The same update
-rule covers three tasks, depending on which part of the control problem is
-unknown.
+There are no epochs, no replay buffer and no batch to wait for. Because the
+filter carries an estimate of its own uncertainty, it also tolerates noisy
+measurements rather than fitting them.
+
+<p align="center">
+  <img src="images/OPDP_1.png" width="100%" alt="The OCIL loop: the parameter estimate drives the system, the gradient generator differentiates its trajectory, and the chain rule feeds the result back to the estimator.">
+</p>
+
+<p align="center">
+  <em>One update. The current estimate θ̂ produces a system trajectory ξ(θ̂). The
+  gradient generator differentiates that trajectory with respect to θ̂, the loss
+  is measured against the incoming observation O, and the chain rule turns the
+  two into the correction L that the estimator applies.</em>
+</p>
+
+The same update rule covers three tasks, depending on which part of the control
+problem is unknown.
 
 | Learning mode | What is unknown | What it learns from |
 |---|---|---|
@@ -27,16 +41,16 @@ unknown.
 <p align="center">
   <img src="images/IL_cartpole.png" width="32%" alt="Imitation learning on the cart-pole">
   <img src="images/SysID_uav.png" width="32%" alt="System identification on the quadrotor">
-  <img src="images/PT_rocket.png" width="32%" alt="Policy tuning on the rocket">
+  <img src="images/PT_cartpole.png" width="32%" alt="Policy tuning on the cart-pole">
 </p>
 
 <p align="center">
-  <em>Loss against the number of data points consumed, over five trials.
-  Left and centre: the red line marks one pass over the data. Everything to the
-  left of it is genuinely online — each point is seen once — and the dashed
-  continuation to the right reuses the same data offline.
-  Right: policy tuning against Pontryagin Differentiable Programming with a
-  polynomial policy, on a linear axis.</em>
+  <em>Loss against the number of data points consumed, over five trials, one
+  panel per learning mode. The red line in the first two marks one pass over the
+  data: to the left of it every point has been seen exactly once, and the dashed
+  continuation to the right reuses the same data offline. Each panel also plots
+  OCIL on noisy measurements — the paler series — which ends above the clean run
+  but still below every baseline.</em>
 </p>
 
 ## Installation
