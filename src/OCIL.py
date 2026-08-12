@@ -85,6 +85,8 @@ class ImitationLearning:
         self.iteration = 1
         self.Loss_his = []
         self.theta_error = []
+        # a neural objective has no ground truth to compare against
+        self.track_theta_error = True
 
     def set_sigma(self, sigma):
         self.sigma = sigma
@@ -93,6 +95,14 @@ class ImitationLearning:
 
     def set_iteration(self, iteration):
         self.iteration = iteration
+
+    def initialize_nn_parameter(self):
+        # for a neural objective or neural dynamics the parameter is the network
+        # weights, so it is drawn at random rather than perturbed around a truth
+        self.theta = np.random.random(self.sysoc.n_auxvar)
+        self.initial_theta = self.theta
+        self.dp = np.zeros(self.theta.shape)
+        self.track_theta_error = False
 
     def initialize_EKF(self, P, Q, R):
         self.P_prev = P
@@ -189,8 +199,9 @@ class ImitationLearning:
             loss_his += [lossNorm]
             Loss += lossNorm
         self.Loss_his += [np.asarray(Loss)[0,0]]
-        self.theta_error += [np.asarray(norm_2(self.theta-self.true_theta)**2)[0,0]]
-        
+        if self.track_theta_error:
+            self.theta_error += [np.asarray(norm_2(self.theta-self.true_theta)**2)[0,0]]
+
 
     def saveEach(self, idx, traj, loss_his):
         sio.savemat(self.dir+"results/iter_"+str(idx)+".mat", {'trajectories': traj,
@@ -214,11 +225,12 @@ class ImitationLearning:
         axs.set_ylabel("Loss")
         axs.set_title(self.mode + ": " + self.project)
 
-        fig, axs = plt.subplots()
-        axs.plot(self.theta_error)
-        axs.set_xlabel("Data")
-        axs.set_ylabel("Theta Error")
-        axs.set_title(self.mode + ": " + self.project)
+        if self.theta_error:
+            fig, axs = plt.subplots()
+            axs.plot(self.theta_error)
+            axs.set_xlabel("Data")
+            axs.set_ylabel("Theta Error")
+            axs.set_title(self.mode + ": " + self.project)
         plt.show()
 
     def plotTraj(self, state_traj, control_traj):
@@ -598,7 +610,7 @@ class PolicyTuning:
                 dxdtheta_t = dxdtheta_traj[idx]
                 dudtheta_t = dudtheta_traj[idx]
                 
-                if self.case == "traj" or "Objective":
+                if self.case == "traj" or self.case == "Objective":
                     dxidtheta_t = np.vstack((dxdtheta_t, dudtheta_t))
                     # --------------------------- Loss function, dLdXi ---------------------------------------- 
                     xi = SX.sym("xi", self.dynsys.X.shape[0]+self.dynsys.U.shape[0])

@@ -6,7 +6,7 @@ import sys
 sys.path.append(os.getcwd() + '/src')
 sys.path.append(os.getcwd() + '/externals/Pontryagin-Differentiable-Programming')
 import OCIL
-import JinEnv_nnObj
+import JinEnv_NN
 
 
 
@@ -14,7 +14,7 @@ import JinEnv_nnObj
 project = "CartPole"
 mode = "Objective"
 saveFlag = False
-dynsys = JinEnv_nnObj.CartPole()
+dynsys = JinEnv_NN.CartPole()
 dynsys.initDyn(mc=0.5, mp=0.5, l=1)
 # dynsys.initCost(wu = 0.1)
 
