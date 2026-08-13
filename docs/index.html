@@ -531,6 +531,7 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: var(--fs); text
           <div>
             <div class="card-title" style="margin-bottom:0.5rem">Parameters</div>
             <table class="par" id="partable"></table>
+            <p id="parnote" style="color:var(--ink-3); font-size:var(--fx); margin:0.55rem 0 0"></p>
           </div>
         </div>
       </div>
@@ -1450,18 +1451,19 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: var(--fs); text
       : "step " + frame;
     hud.innerHTML = "data points <b>"+cp.n+"</b> &nbsp; loss <b>"+fmt(cp.loss)+"</b>";
     var sp = split(cur);
-    var ref = sp.cost.length ? sp.cost[0] : -1;
+    var costSum = 0, trueSum = 0;
+    sp.cost.forEach(function (i) {
+      costSum += Math.abs(cp.theta[i]);
+      trueSum += Math.abs(d.true_theta[i]);
+    });
     partable.innerHTML = "<thead><tr><th>parameter</th><th>true</th><th>learned</th><th>match</th></tr></thead><tbody>" +
       d.param_names.map(function (nm, i) {
         var isCost = sp.cost.indexOf(i) >= 0, shown, truth, label = plabel(nm);
-        // the reference weight divided by itself is always 1, so it is not shown
-        if (isCost && ref >= 0 && i === ref) return "";
-        if (isCost && ref >= 0) {
-          // a weight only means anything relative to the other weights
-          shown = cp.theta[i] / (cp.theta[ref] || 1e-9);
-          truth = d.true_theta[i] / (d.true_theta[ref] || 1e-9);
-          label = plabel(nm) + '<span style="color:var(--ink-3)"> \u00f7 ' +
-                  plabel(d.param_names[ref]) + '</span>';
+        if (isCost) {
+          /* Scaling every weight by the same factor leaves the optimal trajectory
+             unchanged, so only each weight's share of the total is recoverable. */
+          shown = cp.theta[i] / (costSum || 1e-9);
+          truth = d.true_theta[i] / (trueSum || 1e-9);
         } else {
           shown = cp.theta[i]; truth = d.true_theta[i];
         }
@@ -1470,6 +1472,13 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: var(--fs); text
         return "<tr><td>"+label+"</td><td>"+truth.toFixed(2)+"</td><td>"+shown.toFixed(3)+
                '</td><td style="width:64px"><span class="bar"><i style="width:'+w.toFixed(0)+'%"></i></span></td></tr>';
       }).join("") + "</tbody>";
+    var note = document.getElementById("parnote");
+    if (note) {
+      note.textContent = sp.cost.length
+        ? "Cost weights are shown as a share of the total. Scaling them all by the "
+          + "same factor leaves the trajectory unchanged, so only the shares can be learned."
+        : "";
+    }
     marker(d, cp);
   }
   var lg = null;
