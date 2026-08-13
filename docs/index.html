@@ -244,6 +244,17 @@ table.par th, table.par td { padding: 0.28rem 0.4rem; text-align: right; border-
 table.par th { font-family: "Panel", -apple-system, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
 table.par td:first-child, table.par th:first-child { text-align: left; }
 table.par tr:last-child td { border-bottom: 0; }
+table.par tr.grp td {
+  padding-top: 0.75rem; border-bottom: 0; text-align: left;
+  font-family: "Panel", -apple-system, sans-serif; font-weight: 700;
+  font-size: var(--fx); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--barcol, var(--accent));
+}
+table.par tr.grp:first-child td { padding-top: 0.1rem; }
+table.par tr.grp span {
+  margin-left: 0.5rem; text-transform: none; letter-spacing: 0;
+  font-weight: 400; color: var(--ink-3);
+}
 .bar { display: block; height: 6px; background: var(--rule-2); border-radius: 3px; overflow: hidden; min-width: 44px; }
 .bar i { display: block; height: 100%; background: var(--barcol, var(--s1)); border-radius: 3px; transition: width 0.15s; }
 
@@ -1440,7 +1451,9 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: var(--fs); text
   }
   function update() {
     var d = SYS[cur], cp = d.checkpoints[ci];
-    canvas.parentNode.style.setProperty("--barcol", "var(--sys-" + cur + ")");
+    // set on the shared ancestor so the side panel picks it up too
+    var expRoot = canvas.closest(".explorer") || canvas.parentNode;
+    expRoot.style.setProperty("--barcol", "var(--sys-" + cur + ")");
     stage.draw(cp, frame);
     scrubval.textContent = cp.n + " / " + d.n_data;
     if (tscrub.value !== String(frame)) tscrub.value = String(frame);
@@ -1456,8 +1469,19 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: var(--fs); text
       costSum += Math.abs(cp.theta[i]);
       trueSum += Math.abs(d.true_theta[i]);
     });
+    /* Physical constants and objective weights mean different things and are
+       compared differently, so the table says which is which. */
+    var GROUP = {
+      phys: '<tr class="grp"><td colspan="4">Physical parameters</td></tr>',
+      cost: '<tr class="grp"><td colspan="4">Cost weights' +
+            '<span>share of the objective</span></td></tr>'
+    };
+    var emitted = {};
     partable.innerHTML = "<thead><tr><th>parameter</th><th>true</th><th>learned</th><th>match</th></tr></thead><tbody>" +
       d.param_names.map(function (nm, i) {
+        var kind = sp.cost.indexOf(i) >= 0 ? "cost" : "phys";
+        var header = "";
+        if (!emitted[kind]) { emitted[kind] = true; header = GROUP[kind]; }
         var isCost = sp.cost.indexOf(i) >= 0, shown, truth, label = plabel(nm);
         if (isCost) {
           /* Scaling every weight by the same factor leaves the optimal trajectory
@@ -1469,14 +1493,14 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: var(--fs); text
         }
         var err = Math.abs(shown - truth) / (Math.abs(truth) || 1);
         var w = Math.max(0, Math.min(1, 1 - err)) * 100;
-        return "<tr><td>"+label+"</td><td>"+truth.toFixed(2)+"</td><td>"+shown.toFixed(3)+
+        return header + "<tr><td>"+label+"</td><td>"+truth.toFixed(2)+"</td><td>"+shown.toFixed(3)+
                '</td><td style="width:64px"><span class="bar"><i style="width:'+w.toFixed(0)+'%"></i></span></td></tr>';
       }).join("") + "</tbody>";
     var note = document.getElementById("parnote");
     if (note) {
       note.textContent = sp.cost.length
-        ? "Cost weights are shown as a share of the total. Scaling them all by the "
-          + "same factor leaves the trajectory unchanged, so only the shares can be learned."
+        ? "Scaling every weight by the same factor leaves the trajectory unchanged, "
+          + "so only each weight's share of the objective can be learned."
         : "";
     }
     marker(d, cp);
