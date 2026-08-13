@@ -1,10 +1,16 @@
 # OCIL — Online Control-Informed Learning
 
-[![Paper](https://img.shields.io/badge/arXiv-2410.03924-b31b1b.svg)](https://arxiv.org/abs/2410.03924)
+[![Paper](https://img.shields.io/badge/TMLR-2025-b31b1b.svg)](https://openreview.net/forum?id=LDzvZEVl5H)
+[![Project page](https://img.shields.io/badge/Project%20page-live-e8490f.svg)](https://zihaoliang.github.io/OCIL-Online-Control-Informed-Learning/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+**[Interactive project page →](https://zihaoliang.github.io/OCIL-Online-Control-Informed-Learning/)**
+Animated pendulum, quadrotor, cart-pole and rocket-landing runs, an interactive
+diagram of the update loop, and the result charts.
+
 Reference implementation of **Online Control-Informed Learning**, by Zihao Liang,
-Tianyu Zhou, Zehui Lu and Shaoshuai Mou.
+Tianyu Zhou, Zehui Lu and Shaoshuai Mou, published in Transactions on Machine
+Learning Research (2025).
 
 OCIL treats a robot as a tunable optimal control system and learns its unknown
 parameters from a stream of data, one measurement at a time. Two well-understood
@@ -204,11 +210,13 @@ search, iterative LQR, and neural networks trained with Adam.
 ## Citation
 
 ```bibtex
-@article{liang2024online,
+@article{liang2025online,
   title   = {Online Control-Informed Learning},
   author  = {Liang, Zihao and Zhou, Tianyu and Lu, Zehui and Mou, Shaoshuai},
-  journal = {arXiv preprint arXiv:2410.03924},
-  year    = {2024}
+  journal = {Transactions on Machine Learning Research},
+  issn    = {2835-8856},
+  year    = {2025},
+  url     = {https://openreview.net/forum?id=LDzvZEVl5H}
 }
 ```
 
