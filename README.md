@@ -1,63 +1,60 @@
-# OCIL — Online Control-Informed Learning
+<div align="center">
 
-[![Paper](https://img.shields.io/badge/TMLR-2025-b31b1b.svg)](https://openreview.net/forum?id=LDzvZEVl5H)
-[![Project page](https://img.shields.io/badge/Project%20page-live-e8490f.svg)](https://zihaoliang.github.io/OCIL-Online-Control-Informed-Learning/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+# Online Control-Informed Learning
 
-**[Interactive project page →](https://zihaoliang.github.io/OCIL-Online-Control-Informed-Learning/)**
-Animated pendulum, quadrotor, cart-pole and rocket-landing runs, an interactive
-diagram of the update loop, and the result charts.
+**Zihao Liang · Tianyu Zhou · Zehui Lu · Shaoshuai Mou**
+Purdue University
 
-Reference implementation of **Online Control-Informed Learning**, by Zihao Liang,
-Tianyu Zhou, Zehui Lu and Shaoshuai Mou, published in Transactions on Machine
-Learning Research (2025).
+Transactions on Machine Learning Research, 2025
 
-OCIL treats a robot as a tunable optimal control system and learns its unknown
-parameters from a stream of data, one measurement at a time. Two well-understood
-pieces of control theory do the work. Pontryagin Differentiable Programming gives
-the exact gradient of the trajectory with respect to the parameters, by
-differentiating the optimality conditions into a second, linear control problem.
-An extended Kalman filter then treats those parameters as a hidden state and
-corrects them with each new observation.
+[**Paper**](https://openreview.net/forum?id=LDzvZEVl5H) ·
+[**Project page**](https://zihaoliang.github.io/OCIL-Online-Control-Informed-Learning/) ·
+[**Code**](https://github.com/ZihaoLiang/OCIL-Online-Control-Informed-Learning)
 
-There are no epochs, no replay buffer and no batch to wait for. Because the
-filter carries an estimate of its own uncertainty, it also tolerates noisy
+[![TMLR 2025](https://img.shields.io/badge/TMLR-2025-b31b1b.svg)](https://openreview.net/forum?id=LDzvZEVl5H)
+[![Project page](https://img.shields.io/badge/project%20page-live-e8490f.svg)](https://zihaoliang.github.io/OCIL-Online-Control-Informed-Learning/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+
+<img src="images/OPDP_1.png" width="92%" alt="The OCIL loop: the parameter estimate drives the system, the gradient generator differentiates its trajectory, and the chain rule feeds the result back to the estimator.">
+
+</div>
+
+We consider any robot as a **tunable optimal control system**, parameterised by
+tunable parameters within its dynamics, its policy and its objective function.
+OCIL learns those parameters from a stream of data, one measurement at a time.
+
+Two parts do the work. A **gradient generator** obtains the exact derivative of
+the trajectory with respect to the parameters, by differentiating through
+Pontryagin's Maximum Principle. An **online parameter estimator** based on the
+extended Kalman filter then corrects them as each measurement arrives.
+
+There are no epochs, no replay buffer and no batch to wait for, and because the
+filter carries an estimate of its own uncertainty it tolerates noisy
 measurements rather than fitting them.
 
-<p align="center">
-  <img src="images/OPDP_1.png" width="100%" alt="The OCIL loop: the parameter estimate drives the system, the gradient generator differentiates its trajectory, and the chain rule feeds the result back to the estimator.">
-</p>
+> **[Try the interactive project page →](https://zihaoliang.github.io/OCIL-Online-Control-Informed-Learning/)**
+> Scrub through training and watch the pendulum, quadrotor, cart-pole and rocket
+> landing converge onto their demonstrations.
 
-<p align="center">
-  <em>One update. The current estimate θ̂ produces a system trajectory ξ(θ̂). The
-  gradient generator differentiates that trajectory with respect to θ̂, the loss
-  is measured against the incoming observation O, and the chain rule turns the
-  two into the correction L that the estimator applies.</em>
-</p>
+## Three learning modes
 
-The same update rule covers three tasks, depending on which part of the control
-problem is unknown.
+One update rule, with a different part of the control problem left unknown.
 
-| Learning mode | What is unknown | What it learns from |
-|---|---|---|
-| **Online imitation learning** | the cost weights, the dynamics, or both | one demonstrated trajectory |
-| **Online system identification** | the dynamics, either as physical parameters or as a neural network | recorded inputs and states |
-| **Policy tuning on the fly** | the weights of a neural feedback policy | the control objective itself |
+| Mode | Unknown | Learned from | Example |
+|---|---|---|---|
+| **Online imitation learning** | cost weights, dynamics, or both | one demonstrated trajectory | [`examples/ImitationLearning`](examples/ImitationLearning) |
+| **Online system identification** | dynamics, as parameters or a neural network | recorded inputs and states | [`examples/SysID`](examples/SysID) |
+| **Policy tuning on the fly** | weights of a neural feedback policy | the control objective | [`examples/PolicyTuning`](examples/PolicyTuning) |
 
-<p align="center">
-  <img src="images/IL_cartpole.png" width="32%" alt="Imitation learning on the cart-pole">
-  <img src="images/SysID_uav.png" width="32%" alt="System identification on the quadrotor">
-  <img src="images/PT_cartpole.png" width="32%" alt="Policy tuning on the cart-pole">
-</p>
+<div align="center">
+<img src="images/IL_cartpole.png" width="32%" alt="Imitation learning on the cart-pole">
+<img src="images/SysID_uav.png" width="32%" alt="System identification on the quadrotor">
+<img src="images/PT_cartpole.png" width="32%" alt="Policy tuning on the cart-pole">
 
-<p align="center">
-  <em>Loss against the number of data points consumed, over five trials, one
-  panel per learning mode. The red line in the first two marks one pass over the
-  data: to the left of it every point has been seen exactly once, and the dashed
-  continuation to the right reuses the same data offline. Each panel also plots
-  OCIL on noisy measurements — the paler series — which ends above the clean run
-  but still below every baseline.</em>
-</p>
+<em>Loss against the number of data points consumed, over five trials, one panel
+per mode. The red line marks one pass over the data. The paler series is OCIL on
+noisy measurements.</em>
+</div>
 
 ## Installation
 
@@ -105,47 +102,47 @@ window with the loss curve and the learned trajectory opens when it finishes.
 ## Examples
 
 Each script sets up a system, picks a learning mode, initialises the filter and
-calls `solve()`. Change the covariances `P`, `Q` and `R` at the top of a script
-to change how aggressively the estimate moves.
+calls `solve()`. The covariances `P`, `Q` and `R` at the top of a script control
+how aggressively the estimate moves.
 
-### Online imitation learning
+### Online imitation learning &nbsp;·&nbsp; [`examples/ImitationLearning/`](examples/ImitationLearning)
 
 Recover what the demonstrator was optimising, and the physics it was operating
-under, from one trajectory.
+under, from a single trajectory.
 
 | System | Script | Learns |
 |---|---|---|
-| Pendulum | `examples/ImitationLearning/pendulum/pendulum_OCIL.py` | 2 cost weights |
-| Cart-pole | `examples/ImitationLearning/cartpole/cartpole_OCIL.py` | 3 dynamics + 4 cost |
-| Quadrotor | `examples/ImitationLearning/uav/uav_OCIL.py` | 5 dynamics + 4 cost |
-| Rocket | `examples/ImitationLearning/rocket/rocket_OCIL.py` | 5 dynamics + 5 cost |
+| Pendulum | `pendulum/pendulum_OCIL.py` | 2 cost weights |
+| Cart-pole | `cartpole/cartpole_OCIL.py` | 3 dynamics + 4 cost |
+| Quadrotor | `uav/uav_OCIL.py` | 5 dynamics + 4 cost |
+| Rocket | `rocket/rocket_OCIL.py` | 5 dynamics + 5 cost |
 
-### Online system identification
+### Online system identification &nbsp;·&nbsp; [`examples/SysID/`](examples/SysID)
 
 Recover the dynamics from recorded inputs and states. The `nn_` scripts replace
-the physical model with a neural network written as a CasADi expression, and the
+the physical model with a neural network written as a CasADi expression; the
 `_PDP` scripts run Pontryagin Differentiable Programming on the same problem for
 comparison.
 
 | System | Physical parameters | Neural dynamics |
 |---|---|---|
-| Pendulum | `examples/SysID/pendulum/pendulum_OCIL.py` | — |
-| Cart-pole | `examples/SysID/cartpole/cartpole_OCIL.py` | `examples/SysID/cartpole/nn_cartpole.py` |
-| Quadrotor | `examples/SysID/uav/uav_OCIL.py` | `examples/SysID/uav/nn_uav.py` |
-| Rocket | `examples/SysID/rocket/rocket_OCIL.py` | `examples/SysID/rocket/nn_rocket.py` |
+| Pendulum | `pendulum/pendulum_OCIL.py` | — |
+| Cart-pole | `cartpole/cartpole_OCIL.py` | `cartpole/nn_cartpole.py` |
+| Quadrotor | `uav/uav_OCIL.py` | `uav/nn_uav.py` |
+| Rocket | `rocket/rocket_OCIL.py` | `rocket/nn_rocket.py` |
 
-### Policy tuning on the fly
+### Policy tuning on the fly &nbsp;·&nbsp; [`examples/PolicyTuning/`](examples/PolicyTuning)
 
-Tune the weights of a neural feedback policy online. The `_traj` scripts match both
-states and controls against a reference, `_state` matches states only, and the
-`_obj` scripts minimise the control cost directly.
+Tune the weights of a neural feedback policy online. `_traj` matches both states
+and controls against a reference, `_state` matches states only, and `_obj`
+minimises the control cost directly.
 
 | System | Track a trajectory | Minimise the objective |
 |---|---|---|
-| Pendulum | `examples/PolicyTuning/pendulum/pendulum_OCIL_traj.py`<br>`examples/PolicyTuning/pendulum/pendulum_OCIL_state.py` | — |
-| Cart-pole | `examples/PolicyTuning/cartpole/cartpole_OCIL_traj.py` | `examples/PolicyTuning/cartpole/cartpole_OCIL_obj.py` |
-| Quadrotor | `examples/PolicyTuning/uav/uav_OCIL_traj.py` | `examples/PolicyTuning/uav/uav_OCIL_obj.py` |
-| Rocket | `examples/PolicyTuning/rocket/rocket_OCIL_traj.py` | `examples/PolicyTuning/rocket/rocket_OCIL_obj.py` |
+| Pendulum | `pendulum/pendulum_OCIL_traj.py`<br>`pendulum/pendulum_OCIL_state.py` | — |
+| Cart-pole | `cartpole/cartpole_OCIL_traj.py` | `cartpole/cartpole_OCIL_obj.py` |
+| Quadrotor | `uav/uav_OCIL_traj.py` | `uav/uav_OCIL_obj.py` |
+| Rocket | `rocket/rocket_OCIL_traj.py` | `rocket/rocket_OCIL_obj.py` |
 
 ## How the code is organised
 

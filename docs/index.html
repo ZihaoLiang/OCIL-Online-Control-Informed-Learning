@@ -713,6 +713,18 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: var(--fs); text
                uav: "Quadrotor", uav_sysid: "Quadrotor" };
   var MODE_LABEL = { Objective: "objective", Dynamic: "physics", All: "both", SysID: "physics" };
 
+  /* Readable names for the raw symbols the environments use. The cost weights
+     say which term of the objective each one multiplies. */
+  var PARAM_LABEL = {
+    m_cart: "cart mass", m_pole: "pole mass", l_pole: "pole length",
+    mass: "mass", l_arm: "arm length",
+    J_x: "inertia x", J_y: "inertia y", J_z: "inertia z",
+    w_x: "position", w_q: "angle", w_dx: "velocity", w_dq: "angular rate",
+    w_r: "position", w_v: "velocity", w_tilt: "tilt",
+    w_sidethrust: "side thrust", w_w: "angular rate"
+  };
+  function plabel(nm) { return PARAM_LABEL[nm] || nm; }
+
   function split(name) {
     var d = SYS[name];
     if (!d) return { phys: [], cost: [] };
@@ -1441,12 +1453,15 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: var(--fs); text
     var ref = sp.cost.length ? sp.cost[0] : -1;
     partable.innerHTML = "<thead><tr><th>parameter</th><th>true</th><th>learned</th><th>match</th></tr></thead><tbody>" +
       d.param_names.map(function (nm, i) {
-        var isCost = sp.cost.indexOf(i) >= 0, shown, truth, label = nm;
+        var isCost = sp.cost.indexOf(i) >= 0, shown, truth, label = plabel(nm);
+        // the reference weight divided by itself is always 1, so it is not shown
+        if (isCost && ref >= 0 && i === ref) return "";
         if (isCost && ref >= 0) {
           // a weight only means anything relative to the other weights
           shown = cp.theta[i] / (cp.theta[ref] || 1e-9);
           truth = d.true_theta[i] / (d.true_theta[ref] || 1e-9);
-          label = nm + '<span style="color:var(--ink-3)"> \u00f7' + d.param_names[ref] + '</span>';
+          label = plabel(nm) + '<span style="color:var(--ink-3)"> \u00f7 ' +
+                  plabel(d.param_names[ref]) + '</span>';
         } else {
           shown = cp.theta[i]; truth = d.true_theta[i];
         }
